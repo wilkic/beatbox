@@ -33,6 +33,9 @@ header p  { color: var(--dim); font-size: 10px; }
 .hint { color: var(--dim); font-size: 10px; }
 #clearCompare { background: none; border: 1px solid var(--border); color: var(--dim); padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 10px; letter-spacing: 1px; min-height: 32px; }
 #clearCompare:hover { border-color: var(--accent); color: var(--accent); }
+#playBtn { background: none; border: 1px solid var(--accent); color: var(--accent); padding: 6px 18px; cursor: pointer; font-family: inherit; font-size: 11px; letter-spacing: 2px; min-height: 32px; }
+#playBtn:active { background: rgba(78,158,245,0.15); }
+#playBtn.playing { border-color: var(--green); color: var(--green); }
 
 .cat-bar { display: flex; gap: 4px; padding: 8px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .cat-btn { background: none; border: 1px solid var(--border); color: var(--dim); padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; min-height: 32px; }
@@ -83,6 +86,7 @@ canvas { display: block; max-width: 100%; }
 <div class="controls">
   <label><input type="checkbox" id="cmpCheck">&nbsp;Compare mode — click multiple sounds to overlay Bode plots</label>
   <button id="clearCompare">Clear overlay</button>
+  <button id="playBtn">▶ PLAY</button>
   <span class="hint">Based on TR-808 / TR-909 archetypes</span>
 </div>
 
@@ -756,6 +760,113 @@ function drawWaveform() {
 }
 
 function redraw() { drawBode(); drawWaveform(); }
+
+// ── AUDIO SYNTHESIS ──────────────────────────────────────────────────────────
+// Noise-based sounds use real filtered white noise (much better than sinusoid banks).
+// Tonal sounds (kicks, congas, cowbell, etc.) sample the existing wave() function.
+
+let audioCtx = null;
+function getCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+// Sounds that need real noise synthesis (not wave fn)
+const SYNTH_NOISE = {
+  hh_closed:  { filter:'highpass', f0:7000, Q:0.9,  tau:0.015, gain:3.5 },
+  hh_open:    { filter:'highpass', f0:7000, Q:0.9,  tau:0.200, gain:3.5 },
+  hh_pedal:   { filter:'highpass', f0:5000, Q:1.2,  tau:0.050, gain:3.0 },
+  crash:      { filter:'highpass', f0:2500, Q:0.7,  tau:0.700, gain:2.5 },
+  ride:       { filter:'bandpass', f0:4000, Q:1.0,  tau:0.500, gain:3.0 },
+  shaker:     { filter:'highpass', f0:9000, Q:0.8,  tau:0.020, gain:4.0 },
+  noise_burst:{ filter:null,                         tau:0.030, gain:1.0 },
+};
+
+function makeNoiseBuf(ctx, tau, dur) {
+  const n = Math.ceil(ctx.sampleRate * dur);
+  const buf = ctx.createBuffer(1, n, ctx.sampleRate);
+  const ch  = buf.getChannelData(0);
+  for (let i = 0; i < n; i++)
+    ch[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * tau));
+  return buf;
+}
+
+function playCurrentSound() {
+  const sound = SOUNDS.find(s => s.id === selId);
+  if (!sound) return;
+  const ctx = getCtx();
+  const btn = document.getElementById('playBtn');
+  btn.classList.add('playing');
+  setTimeout(() => btn.classList.remove('playing'), Math.min(sound.dur * 1000, 600));
+
+  // ── Noise-based sounds ──────────────────────────────────────────
+  const nc = SYNTH_NOISE[sound.id];
+  if (nc) {
+    const src = ctx.createBufferSource();
+    src.buffer = makeNoiseBuf(ctx, nc.tau, sound.dur);
+    const g = ctx.createGain();
+    g.gain.value = nc.gain;
+    if (nc.filter) {
+      const filt = ctx.createBiquadFilter();
+      filt.type = nc.filter; filt.frequency.value = nc.f0; filt.Q.value = nc.Q;
+      src.connect(filt); filt.connect(g);
+    } else {
+      src.connect(g);
+    }
+    g.connect(ctx.destination);
+    src.start();
+    return;
+  }
+
+  // ── 909 Snare: tonal body + bandpass noise ──────────────────────
+  if (sound.id === 'snare_909') {
+    const SR = ctx.sampleRate, n = Math.ceil(SR * 0.15);
+    // Body
+    const bb = ctx.createBuffer(1,n,SR); const bd=bb.getChannelData(0);
+    for (let i=0;i<n;i++) bd[i]=Math.exp(-i/(SR*0.05))*Math.sin(2*Math.PI*200*i/SR);
+    const bs=ctx.createBufferSource(); bs.buffer=bb;
+    const bg=ctx.createGain(); bg.gain.value=0.7;
+    bs.connect(bg); bg.connect(ctx.destination); bs.start();
+    // Noise tail
+    const nb=makeNoiseBuf(ctx,0.08,0.15);
+    const ns=ctx.createBufferSource(); ns.buffer=nb;
+    const nf=ctx.createBiquadFilter(); nf.type='bandpass'; nf.frequency.value=2500; nf.Q.value=1.2;
+    const ng=ctx.createGain(); ng.gain.value=3.0;
+    ns.connect(nf); nf.connect(ng); ng.connect(ctx.destination); ns.start();
+    return;
+  }
+
+  // ── Clap: three staggered noise bursts ─────────────────────────
+  if (sound.id === 'clap_808') {
+    [0, 0.004, 0.009].forEach(offset => {
+      const src=ctx.createBufferSource(); src.buffer=makeNoiseBuf(ctx,0.012,0.05);
+      const filt=ctx.createBiquadFilter(); filt.type='bandpass'; filt.frequency.value=1500; filt.Q.value=1.0;
+      const g=ctx.createGain(); g.gain.value=3.5;
+      src.connect(filt); filt.connect(g); g.connect(ctx.destination);
+      src.start(ctx.currentTime+offset);
+    });
+    return;
+  }
+
+  // ── Default: sample wave() into AudioBuffer ─────────────────────
+  const SR  = ctx.sampleRate;
+  const n   = Math.ceil(SR * sound.dur);
+  const buf = ctx.createBuffer(1, n, SR);
+  const ch  = buf.getChannelData(0);
+  let peak  = 0;
+  for (let i = 0; i < n; i++) {
+    ch[i] = sound.wave(i / SR);
+    if (Math.abs(ch[i]) > peak) peak = Math.abs(ch[i]);
+  }
+  if (peak > 0.001) { const s=0.85/peak; for (let i=0;i<n;i++) ch[i]*=s; }
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.connect(ctx.destination);
+  src.start();
+}
+
+document.getElementById('playBtn').onclick = playCurrentSound;
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 buildSoundBtns();
