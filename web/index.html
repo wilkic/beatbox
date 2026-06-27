@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Electronic Percussion — Sound Reference</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg:      #0b0b12;
+  --bg2:     #12121c;
+  --bg3:     #181828;
+  --border:  #252535;
+  --text:    #c0c0d0;
+  --dim:     #555568;
+  --accent:  #4e9ef5;
+  --green:   #3ecf7a;
+  --amber:   #f0a020;
+  --red:     #f06060;
+  --purple:  #b07aff;
+  --cyan:    #30d0c0;
+  --orange:  #ff8844;
+}
+body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; font-size: 12px; }
+
+header { padding: 14px 20px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: baseline; gap: 20px; }
+header h1 { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); }
+header p  { color: var(--dim); font-size: 10px; }
+
+.controls { display: flex; align-items: center; gap: 16px; padding: 8px 20px; border-bottom: 1px solid var(--border); }
+.controls label { color: var(--dim); font-size: 10px; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.controls input[type=checkbox] { accent-color: var(--accent); }
+.hint { color: var(--dim); font-size: 10px; margin-left: auto; }
+#clearCompare { background: none; border: 1px solid var(--border); color: var(--dim); padding: 3px 10px; cursor: pointer; font-family: inherit; font-size: 10px; letter-spacing: 1px; }
+#clearCompare:hover { border-color: var(--accent); color: var(--accent); }
+
+.cat-bar { display: flex; gap: 3px; padding: 8px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.cat-btn { background: none; border: 1px solid var(--border); color: var(--dim); padding: 3px 12px; cursor: pointer; font-family: inherit; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+.cat-btn.active { border-color: var(--accent); color: var(--accent); }
+.cat-btn:hover:not(.active) { border-color: var(--dim); color: var(--text); }
+
+.sounds-bar { display: flex; gap: 4px; padding: 8px 20px; flex-wrap: wrap; min-height: 42px; border-bottom: 1px solid var(--border); }
+.snd-btn { background: var(--bg2); border: 1px solid var(--border); color: var(--text); padding: 4px 10px; cursor: pointer; font-family: inherit; font-size: 10px; letter-spacing: 0.5px; }
+.snd-btn:hover { border-color: #444; }
+.snd-btn.sel { border-color: var(--accent); color: var(--accent); background: rgba(78,158,245,0.07); }
+
+.legend { display: flex; gap: 16px; align-items: center; padding: 5px 20px; font-size: 10px; color: var(--dim); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.litem { display: flex; align-items: center; gap: 5px; }
+.ldot { width: 16px; height: 2px; display: inline-block; }
+
+.plots { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
+.panel { background: var(--bg); padding: 14px 16px 10px; }
+.panel-title { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 8px; }
+canvas { display: block; }
+
+.info { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border-top: 1px solid var(--border); }
+.info-left { background: var(--bg); padding: 14px 20px; }
+.info-right { background: var(--bg2); padding: 14px 20px; }
+.info-name { font-size: 15px; color: var(--accent); letter-spacing: 2px; margin-bottom: 3px; }
+.info-cat  { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+.info-desc { color: var(--text); line-height: 1.7; font-size: 11px; max-width: 580px; }
+.model-title { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--amber); margin-bottom: 8px; }
+.model-body { color: var(--green); line-height: 1.9; font-size: 11px; white-space: pre; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Electronic Percussion — Sound Reference</h1>
+  <p>First-order filter approximations &nbsp;·&nbsp; Bode magnitude &amp; phase &nbsp;·&nbsp; Waveform envelopes</p>
+</header>
+
+<div class="controls">
+  <label><input type="checkbox" id="cmpCheck">&nbsp;Compare mode — click multiple sounds to overlay Bode plots</label>
+  <button id="clearCompare">Clear overlay</button>
+  <span class="hint">Based on TR-808 / TR-909 archetypes</span>
+</div>
+
+<div class="cat-bar" id="catBar"></div>
+<div class="sounds-bar" id="soundsBar"></div>
+<div class="legend" id="legend" style="display:none"></div>
+
+<div class="plots">
+  <div class="panel">
+    <div class="panel-title">Bode Plot — Frequency Response (Magnitude &amp; Phase)</div>
+    <canvas id="bodeCanvas"></canvas>
+  </div>
+  <div class="panel">
+    <div class="panel-title">Waveform — Time Domain Envelope</div>
+    <canvas id="waveCanvas"></canvas>
+  </div>
+</div>
+
+<div class="info">
+  <div class="info-left">
+    <div class="info-name" id="infoName"></div>
+    <div class="info-cat"  id="infoCat"></div>
+    <div class="info-desc" id="infoDesc"></div>
+  </div>
+  <div class="info-right">
+    <div class="model-title">Filter Model / Approximation</div>
+    <div class="model-body" id="infoModel"></div>
+  </div>
+</div>
+
+<script>
+// ── MATH ─────────────────────────────────────────────────────────────────────
+
+const dBLP2 = (f, f0, Q) => {
+  const r = f / f0;
+  return -20 * Math.log10(Math.sqrt((1-r*r)**2 + (r/Q)**2));
+};
+const dBHP2 = (f, f0, Q) => {
+  const r = f / f0;
+  return 20 * Math.log10(r*r / Math.sqrt((1-r*r)**2 + (r/Q)**2));
+};
+const dBBP2 = (f, f0, Q) => {
+  const r = f / f0;
+  return 20 * Math.log10(Math.abs(r/Q) / Math.sqrt((1-r*r)**2 + (r/Q)**2));
+};
+
+// Phase responses (radians)
+const phLP2 = (f, f0, Q) => -Math.atan2(f/(f0*Q), 1-(f/f0)**2);
+const phHP2 = (f, f0, Q) =>  Math.PI - Math.atan2(f/(f0*Q), 1-(f/f0)**2);
+const phBP2 = (f, f0, Q) =>  Math.PI/2 - Math.atan2(f/(f0*Q), 1-(f/f0)**2);
+
+// Mix components in linear amplitude domain, return dB
+const dBMix = (f, comps) => {
+  let s = 0;
+  for (const c of comps) s += Math.pow(10, c.fn(f)/20) * (c.w ?? 1);
+  return 20 * Math.log10(Math.max(s, 1e-10));
+};
+const phMix = (f, comps) => {
+  // Weighted circular mean of phases
+  let sr=0, si=0;
+  for (const c of comps) {
+    const ph = c.fn(f); const w = c.w ?? 1;
+    sr += w * Math.cos(ph); si += w * Math.sin(ph);
+  }
+  return Math.atan2(si, sr);
+};
+
+// Seeded LCG pseudo-random
+function makeLCG(seed) {
+  let s = seed >>> 0;
+  return () => { s = (Math.imul(s,1664525)+1013904223)>>>0; return s/0xffffffff*2-1; };
+}
+
+// Pre-baked noise banks (deterministic, evaluated per time t)
+function noiseBank(flo, fhi, n, seed) {
+  const rng = makeLCG(seed);
+  const bins = Array.from({length:n}, (_,i) => ({
+    f: flo + (fhi-flo)*(i+0.5)/n,
+    ph: rng() * Math.PI
+  }));
+  return t => { let v=0; for(const b of bins) v+=Math.sin(2*Math.PI*b.f*t+b.ph); return v/n; };
+}
+
+// Pitch-envelope kick waveform (sine with gliding frequency)
+const kickWave = (t, fStart, fEnd, tauP, tauA, dur) => {
+  if (t<0||t>dur) return 0;
+  const phase = 2*Math.PI*(fEnd*t + (fStart-fEnd)*tauP*(1-Math.exp(-t/tauP)));
+  return Math.exp(-t/tauA) * Math.sin(phase);
+};
+
+// Pre-computed noise sources
+const _nzSnare  = noiseBank(1000,  5000, 20, 7);
+const _nzClap   = noiseBank( 800,  3000, 20, 13);
+const _nzHHcl   = noiseBank(6000, 16000, 24, 3);
+const _nzHHop   = noiseBank(6000, 16000, 24, 5);
+const _nzHHped  = noiseBank(4000, 12000, 20, 8);
+const _nzCrash  = noiseBank(2000, 14000, 30, 17);
+const _nzRide   = noiseBank(3000, 10000, 24, 21);
+const _nzShaker = noiseBank(8000, 18000, 20, 31);
+const _nzNoise  = noiseBank(  20, 20000, 40, 55);
+
+// ── SOUNDS ───────────────────────────────────────────────────────────────────
+
+const SOUNDS = [
+
+  // ─ KICK ─────────────────────────────────────────────────────────────────
+  {
+    id:'kick_808', name:'808 Kick', cat:'Kick',
+    desc:'The Roland TR-808\'s defining sound: a pure sine oscillator whose pitch slides exponentially from ~180 Hz to ~50 Hz over 60 ms, then amplitude decays slowly over 350 ms. Sub-heavy, tunable, felt more than heard below 60 Hz. The bedrock of hip-hop, electro, and deep techno. Long enough decay to be almost melodic.',
+    model:'Resonant LP     f₀ = 60 Hz · Q = 6\nPitch env       180 → 50 Hz · τ = 60 ms\nAmplitude env   τ = 350 ms · duration ≈ 500 ms',
+    dur: 0.50,
+    bode:  f => dBLP2(f, 60, 6),
+    phase: f => phLP2(f, 60, 6),
+    wave:  t => kickWave(t, 180, 50, 0.060, 0.35, 0.50),
+  },
+  {
+    id:'kick_909', name:'909 Kick', cat:'Kick',
+    desc:'The TR-909 kick is punchier, faster, and more "clicky" than the 808. A high-frequency transient burst (800 Hz–1.5 kHz) at onset rides over a shorter pitch envelope (150→80 Hz, τ=30 ms). Amplitude decays in ~120 ms. This is the engine of house and techno—more attack, less sub.',
+    model:'Resonant LP (body)  f₀ = 90 Hz · Q = 4\nBandpass (click)    f₀ = 1 kHz · Q = 2 · τ = 15 ms\nPitch env           150 → 80 Hz · τ = 30 ms\nAmplitude env       τ = 120 ms · duration ≈ 250 ms',
+    dur: 0.25,
+    bode:  f => dBMix(f, [{fn:f=>dBLP2(f,90,4),w:0.80},{fn:f=>dBBP2(f,1000,2),w:0.30}]),
+    phase: f => phLP2(f, 90, 4),
+    wave:  t => {
+      if (t>0.25) return 0;
+      const body  = kickWave(t, 150, 80, 0.030, 0.12, 0.25);
+      const click = t < 0.04 ? Math.exp(-t/0.015) * Math.sin(2*Math.PI*1000*t) * 0.55 : 0;
+      return body + click;
+    },
+  },
+  {
+    id:'kick_click', name:'Click Kick', cat:'Kick',
+    desc:'Minimal techno\'s stripped-down kick: almost entirely transient, no tonal body. A broadband click at 500 Hz–2 kHz decaying in under 30 ms. Punches through dense mixes without occupying sub-bass headroom. Often layered with a separate sub sine for full-range coverage.',
+    model:'Bandpass     f₀ = 800 Hz · Q = 1.5\nAmplitude    τ = 12 ms · duration ≈ 40 ms',
+    dur: 0.04,
+    bode:  f => dBBP2(f, 800, 1.5),
+    phase: f => phBP2(f, 800, 1.5),
+    wave:  t => t>0.04 ? 0 : Math.exp(-t/0.012) * Math.sin(2*Math.PI*800*t),
+  },
+  {
+    id:'kick_dist', name:'Dist Kick', cat:'Kick',
+    desc:'A saturated, clipped kick used in industrial techno and EBM. Hard clipping of a 909-type kick waveform adds odd harmonics (3rd=270 Hz, 5th=450 Hz, 7th=630 Hz) that push energy into the midrange. Bode plot shows elevated harmonic shelves compared to a clean kick.',
+    model:'Resonant LP (body)  f₀ = 90 Hz · Q = 4\nHard clip → odd harmonics:\n  3rd @ 270 Hz · 5th @ 450 Hz · 7th @ 630 Hz\nClip level ≈ 0.6 of peak (THD ~30%)\nAmplitude env   τ = 140 ms · duration ≈ 300 ms',
+    dur: 0.30,
+    bode:  f => dBMix(f, [
+      {fn:f=>dBLP2(f, 90,4), w:1.00},
+      {fn:f=>dBBP2(f,270,8), w:0.25},
+      {fn:f=>dBBP2(f,450,8), w:0.12},
+      {fn:f=>dBBP2(f,630,8), w:0.06},
+    ]),
+    phase: f => phLP2(f, 90, 4),
+    wave:  t => {
+      if (t>0.30) return 0;
+      const raw = kickWave(t, 150, 80, 0.030, 0.14, 0.30) * 2.8;
+      return Math.max(-0.9, Math.min(0.9, raw)) / 0.9;
+    },
+  },
+
+  // ─ SNARE / CLAP ──────────────────────────────────────────────────────────
+  {
+    id:'snare_909', name:'909 Snare', cat:'Snare',
+    desc:'Two-component model: a tuned resonant body (200 Hz sine) for the "thwack," and bandpass-filtered noise (1–5 kHz) for the characteristic air and crack. The noise tail is what gives the 909 snare its presence and upper-register energy. Total duration ~150 ms.',
+    model:'Body:  Resonant LP · f₀ = 200 Hz · Q = 3 · τ = 50 ms\nNoise: Bandpass    · f₀ = 2.5 kHz · Q = 1.2 · τ = 80 ms\nMix:   60% body + 40% noise · duration ≈ 150 ms',
+    dur: 0.15,
+    bode:  f => dBMix(f, [{fn:f=>dBLP2(f,200,3),w:0.60},{fn:f=>dBBP2(f,2500,1.2),w:0.40}]),
+    phase: f => phLP2(f, 200, 3),
+    wave:  t => {
+      if (t>0.15) return 0;
+      const body  = Math.exp(-t/0.050) * Math.sin(2*Math.PI*200*t) * 0.60;
+      const noise = _nzSnare(t) * Math.exp(-t/0.080) * 0.80;
+      return body + noise;
+    },
+  },
+  {
+    id:'clap_808', name:'808 Clap', cat:'Snare',
+    desc:'Multiple noise bursts fired in rapid succession (simulating layered hand slaps: t=0, 4 ms, 9 ms). Each burst is bandpass-filtered around 1–3 kHz. The overlap and decay of three layers creates the characteristic "splatty" fullness. Total duration ~60 ms.',
+    model:'Bandpass noise · f₀ = 1.5 kHz · Q = 1.0\nBurst layers: t = 0 ms · 4 ms · 9 ms\nPer-burst τ = 12 ms · Total ≈ 60 ms',
+    dur: 0.06,
+    bode:  f => dBBP2(f, 1500, 1.0),
+    phase: f => phBP2(f, 1500, 1.0),
+    wave:  t => {
+      if (t>0.06) return 0;
+      const b = (t0, g) => { const dt=t-t0; return dt<0?0: _nzClap(dt)*Math.exp(-dt/0.012)*g; };
+      return b(0,0.8)+b(0.004,0.7)+b(0.009,1.0);
+    },
+  },
+  {
+    id:'rimshot', name:'Rimshot', cat:'Snare',
+    desc:'A dry, woody transient from striking the drum rim. Almost no sustain — entirely defined by its attack. High-Q bandpass around 2 kHz; decays in ~20 ms. Common in minimal techno as a dry off-beat accent that doesn\'t compete with the snare. Very controlled, very staccato.',
+    model:'Bandpass · f₀ = 2 kHz · Q = 8\nAmplitude τ = 8 ms · duration ≈ 25 ms',
+    dur: 0.025,
+    bode:  f => dBBP2(f, 2000, 8),
+    phase: f => phBP2(f, 2000, 8),
+    wave:  t => t>0.025?0: Math.exp(-t/0.008)*Math.sin(2*Math.PI*2000*t),
+  },
+  {
+    id:'snap', name:'Snap', cat:'Snare',
+    desc:'A tight nasal transient around 800–1200 Hz; duration under 30 ms. Less bright than a clap. Used as a ghost note in hip-hop and groove-oriented house patterns. The narrower Q (=5) gives it a slightly tonal character compared to the broad clap noise.',
+    model:'Bandpass · f₀ = 1 kHz · Q = 5\nAmplitude τ = 10 ms · duration ≈ 30 ms',
+    dur: 0.03,
+    bode:  f => dBBP2(f, 1000, 5),
+    phase: f => phBP2(f, 1000, 5),
+    wave:  t => t>0.03?0: Math.exp(-t/0.010)*Math.sin(2*Math.PI*1000*t),
+  },
+
+  // ─ HI-HAT ────────────────────────────────────────────────────────────────
+  {
+    id:'hh_closed', name:'Closed HH', cat:'Hi-Hat',
+    desc:'High-pass filtered metallic noise above 6–8 kHz with a very fast decay (τ=15 ms). In techno, played on every 8th or 16th note to create rhythmic tension and forward motion. The rapid decay is critical — any sustain would clutter the upper frequencies.',
+    model:'Highpass · f₀ = 7 kHz · Q = 0.9\nSource: bandlimited noise\nAmplitude τ = 15 ms · duration ≈ 40 ms',
+    dur: 0.04,
+    bode:  f => dBHP2(f, 7000, 0.9),
+    phase: f => phHP2(f, 7000, 0.9),
+    wave:  t => t>0.04?0: _nzHHcl(t)*Math.exp(-t/0.015),
+  },
+  {
+    id:'hh_open', name:'Open HH', cat:'Hi-Hat',
+    desc:'Same spectral character as the closed HH but with the cymbal allowed to ring: τ=200 ms, total ~400 ms. Placed on offbeats ("and" of 2 or 4) in house and techno for the characteristic "tss" sizzle. Creates rhythmic breathing against a static kick pattern.',
+    model:'Highpass · f₀ = 7 kHz · Q = 0.9\nSource: bandlimited noise\nAmplitude τ = 200 ms · duration ≈ 400 ms',
+    dur: 0.40,
+    bode:  f => dBHP2(f, 7000, 0.9),
+    phase: f => phHP2(f, 7000, 0.9),
+    wave:  t => t>0.40?0: _nzHHop(t)*Math.exp(-t/0.200),
+  },
+  {
+    id:'hh_pedal', name:'Pedal HH', cat:'Hi-Hat',
+    desc:'A transitional hi-hat produced by pressing the pedal as the cymbal closes. Slightly lower frequency content (5–10 kHz range), medium decay τ=50 ms. The "chk" sound used in jazz-influenced house grooves. Bridges the gap between the tight closed and open cymbal sounds.',
+    model:'Highpass · f₀ = 5 kHz · Q = 1.2\nSource: bandlimited noise\nAmplitude τ = 50 ms · duration ≈ 100 ms',
+    dur: 0.10,
+    bode:  f => dBHP2(f, 5000, 1.2),
+    phase: f => phHP2(f, 5000, 1.2),
+    wave:  t => t>0.10?0: _nzHHped(t)*Math.exp(-t/0.050),
+  },
+
+  // ─ CYMBAL ────────────────────────────────────────────────────────────────
+  {
+    id:'crash', name:'Crash', cat:'Cymbal',
+    desc:'Broadband metallic burst, frequency content 2–15 kHz, with a long decay (τ=700 ms). Low-Q highpass captures the wide spectral spread from complex alloy vibration modes. Placed on bar 1 or at structural transitions. The Bode plot shows a gentle rise above 2.5 kHz — all upper frequencies, no fundamentals.',
+    model:'Highpass · f₀ = 2.5 kHz · Q = 0.7\nSource: broadband noise\nAmplitude τ = 700 ms · duration ≈ 1.2 s',
+    dur: 1.20,
+    bode:  f => dBHP2(f, 2500, 0.7),
+    phase: f => phHP2(f, 2500, 0.7),
+    wave:  t => t>1.2?0: _nzCrash(t)*Math.exp(-t/0.700),
+  },
+  {
+    id:'ride', name:'Ride', cat:'Cymbal',
+    desc:'Sustained metallic shimmer with a clearer bell component than a crash. Primary content 3–8 kHz; bell resonance around 4 kHz gives it a more tonal character. Decay τ=500 ms. Used in jazz and jazz-influenced house for steady upper-register texture that can carry a groove.',
+    model:'Bandpass (bell)   f₀ = 4 kHz · Q = 2\nHighpass (sheen)   f₀ = 3 kHz · Q = 0.8\nMix 60/40 · Amplitude τ = 500 ms · duration ≈ 800 ms',
+    dur: 0.80,
+    bode:  f => dBMix(f, [{fn:f=>dBBP2(f,4000,2),w:0.60},{fn:f=>dBHP2(f,3000,0.8),w:0.40}]),
+    phase: f => phHP2(f, 3000, 0.8),
+    wave:  t => {
+      if (t>0.80) return 0;
+      const bell  = Math.sin(2*Math.PI*4000*t)*0.30;
+      const sheen = _nzRide(t)*0.70;
+      return (bell+sheen)*Math.exp(-t/0.500);
+    },
+  },
+
+  // ─ PERC ──────────────────────────────────────────────────────────────────
+  {
+    id:'cowbell', name:'808 Cowbell', cat:'Perc',
+    desc:'Two square-wave-approximated oscillators at 440 Hz and 540 Hz (a slightly inharmonic interval — that\'s the point). Mixed and filtered through high-Q resonators. The Bode plot shows twin narrow peaks and their odd harmonics. Iconic from Afrika Bambaataa\'s "Planet Rock." Decay τ=400 ms.',
+    model:'Two resonant BPs:\n  f₀ = 440 Hz · Q = 12\n  f₀ = 540 Hz · Q = 12\nOdd harmonics (square approx): 1320, 1620 Hz\nAmplitude τ = 400 ms · duration ≈ 600 ms',
+    dur: 0.60,
+    bode:  f => dBMix(f, [
+      {fn:f=>dBBP2(f, 440,12), w:0.50},
+      {fn:f=>dBBP2(f, 540,12), w:0.50},
+      {fn:f=>dBBP2(f,1320, 8), w:0.17},
+      {fn:f=>dBBP2(f,1620, 8), w:0.14},
+    ]),
+    phase: f => phBP2(f, 490, 8),
+    wave:  t => {
+      if (t>0.60) return 0;
+      // Approximate square waves (odd harmonics to 7th)
+      const sq = (f) => Math.sin(2*Math.PI*f*t)
+                      + Math.sin(2*Math.PI*3*f*t)/3
+                      + Math.sin(2*Math.PI*5*f*t)/5
+                      + Math.sin(2*Math.PI*7*f*t)/7;
+      return Math.exp(-t/0.400) * (sq(440)+sq(540)) / 3.2;
+    },
+  },
+  {
+    id:'clave', name:'Clave', cat:'Perc',
+    desc:'Two wooden sticks struck together. Very narrow frequency content around 2.5 kHz (Q=15 — nearly tonal). Duration under 30 ms. Penetrating, dry, and precise. Foundational in Afrobeat and salsa; used in dub techno for its ability to cut through a dense mix without competing with any other element.',
+    model:'Bandpass · f₀ = 2.5 kHz · Q = 15\nAmplitude τ = 10 ms · duration ≈ 30 ms',
+    dur: 0.03,
+    bode:  f => dBBP2(f, 2500, 15),
+    phase: f => phBP2(f, 2500, 15),
+    wave:  t => t>0.03?0: Math.exp(-t/0.010)*Math.sin(2*Math.PI*2500*t),
+  },
+  {
+    id:'shaker', name:'Shaker', cat:'Perc',
+    desc:'High-frequency noise bursts (seed rattling) above 8 kHz. Periodic clusters match the hand-motion rhythm. Decays in ~20 ms per hit. High-pass character with very steep roll-off below 8 kHz. Adds groove texture in house and Afro-tech without touching the midrange at all.',
+    model:'Highpass · f₀ = 9 kHz · Q = 0.8\nSource: bandlimited noise\nPer-hit τ = 20 ms · duration ≈ 50 ms',
+    dur: 0.05,
+    bode:  f => dBHP2(f, 9000, 0.8),
+    phase: f => phHP2(f, 9000, 0.8),
+    wave:  t => t>0.05?0: _nzShaker(t)*Math.exp(-t/0.020),
+  },
+  {
+    id:'conga_lo', name:'Conga Lo', cat:'Perc',
+    desc:'Low conga drum: resonant membrane around 150–220 Hz. Bandpass character with Q=5 and slow slap decay (τ=150 ms). Used in Afro-house and Latin-influenced techno for polyrhythmic layers against a rigid 4/4 kick. The tonal content around 180 Hz sits just above kick sub-bass, so they don\'t mask each other.',
+    model:'Bandpass · f₀ = 180 Hz · Q = 5\nAmplitude τ = 150 ms · duration ≈ 350 ms',
+    dur: 0.35,
+    bode:  f => dBBP2(f, 180, 5),
+    phase: f => phBP2(f, 180, 5),
+    wave:  t => t>0.35?0: Math.exp(-t/0.150)*Math.sin(2*Math.PI*180*t),
+  },
+  {
+    id:'conga_hi', name:'Conga Hi', cat:'Perc',
+    desc:'High conga: tighter membrane at 350–450 Hz, quicker decay (τ=100 ms). Cuts through mixes more readily than the low conga. Typically played in two-note slap patterns with the low. The slightly higher Q compared to some drums reflects the taut, well-tuned skin of a hand drum.',
+    model:'Bandpass · f₀ = 400 Hz · Q = 5\nAmplitude τ = 100 ms · duration ≈ 250 ms',
+    dur: 0.25,
+    bode:  f => dBBP2(f, 400, 5),
+    phase: f => phBP2(f, 400, 5),
+    wave:  t => t>0.25?0: Math.exp(-t/0.100)*Math.sin(2*Math.PI*400*t),
+  },
+
+  // ─ BASS ──────────────────────────────────────────────────────────────────
+  {
+    id:'sub_808', name:'808 Sub Bass', cat:'Bass',
+    desc:'The sustained tunable 808 bass: a very-high-Q resonant lowpass (sine-wave oscillator) at 40–80 Hz with a slow amplitude envelope. More melodic than percussive; duration varies with note length. In trap, hip-hop, and deep techno, forms pitchable basslines. At low volumes, more physical sensation than audible tone.',
+    model:'Resonant LP (very high Q) · f₀ = 60 Hz · Q = 12\nPitch: fixed or sequenced (shown at 60 Hz)\nAmplitude τ = 600 ms · duration 1–4 s (note length)',
+    dur: 1.0,
+    bode:  f => dBLP2(f, 60, 12),
+    phase: f => phLP2(f, 60, 12),
+    wave:  t => t>1.0?0: Math.exp(-t/0.600)*Math.sin(2*Math.PI*60*t),
+  },
+
+  // ─ FX ────────────────────────────────────────────────────────────────────
+  {
+    id:'noise_burst', name:'Noise Burst', cat:'FX',
+    desc:'Unfiltered white noise with a shaped amplitude envelope. The Bode plot is a flat horizontal line — 0 dB at all frequencies. By definition, this is the spectrum of white noise: equal power per frequency bin. The only parameter is the envelope shape. Used as "whoosh" accents or textural fills.',
+    model:'Allpass (flat) · no filtering applied\nSource: white noise (equal power density)\nAmplitude τ = 30 ms · duration ≈ 80 ms',
+    dur: 0.08,
+    bode:  f => 0,
+    phase: f => 0,
+    wave:  t => t>0.08?0: _nzNoise(t)*Math.exp(-t/0.030),
+  },
+  {
+    id:'zap', name:'Zap / Blip', cat:'FX',
+    desc:'High-Q bandpass with a fast downward pitch sweep (2 kHz → 400 Hz in 15 ms). Very short total duration (~40 ms). Common in electro, video-game-adjacent sounds, and industrial techno as a staccato synthetic accent. The Bode plot shows the center frequency at the initial pitch (2 kHz); in practice it sweeps down rapidly.',
+    model:'Bandpass · f₀ = 2 kHz (start) → 400 Hz (end) · Q = 20\nPitch env: exponential sweep · τ = 15 ms\nAmplitude τ = 20 ms · duration ≈ 40 ms',
+    dur: 0.04,
+    bode:  f => dBBP2(f, 2000, 20),
+    phase: f => phBP2(f, 2000, 20),
+    wave:  t => {
+      if (t>0.04) return 0;
+      const phase = 2*Math.PI*(400*t + 1600*0.015*(1-Math.exp(-t/0.015)));
+      return Math.exp(-t/0.020)*Math.sin(phase);
+    },
+  },
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+const CATS = ['All','Kick','Snare','Hi-Hat','Cymbal','Perc','Bass','FX'];
+const COLORS = ['#4e9ef5','#f0a020','#3ecf7a','#f06060','#b07aff','#ff8844','#30d0c0','#ff80aa'];
+
+let selId  = 'kick_808';
+let cmpIds = [];
+let cmpMode = false;
+let activeCat = 'All';
+
+// ── DOM SETUP ─────────────────────────────────────────────────────────────────
+const catBar   = document.getElementById('catBar');
+const soundsBar= document.getElementById('soundsBar');
+const legendEl = document.getElementById('legend');
+const bodeCanvas = document.getElementById('bodeCanvas');
+const waveCanvas = document.getElementById('waveCanvas');
+const bCtx = bodeCanvas.getContext('2d');
+const wCtx = waveCanvas.getContext('2d');
+
+CATS.forEach(c => {
+  const b = document.createElement('button');
+  b.className='cat-btn'+(c==='All'?' active':'');
+  b.textContent = c;
+  b.onclick = () => {
+    activeCat = c;
+    document.querySelectorAll('.cat-btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    buildSoundBtns();
+  };
+  catBar.appendChild(b);
+});
+
+document.getElementById('cmpCheck').onchange = e => {
+  cmpMode = e.target.checked;
+  if (!cmpMode) { cmpIds=[]; buildSoundBtns(); buildLegend(); redraw(); }
+};
+document.getElementById('clearCompare').onclick = () => {
+  cmpIds=[]; buildSoundBtns(); buildLegend(); redraw();
+};
+
+function buildSoundBtns() {
+  soundsBar.innerHTML='';
+  const list = activeCat==='All' ? SOUNDS : SOUNDS.filter(s=>s.cat===activeCat);
+  list.forEach(s => {
+    const b = document.createElement('button');
+    b.className = 'snd-btn';
+    if (s.id===selId) b.classList.add('sel');
+    const ci = cmpIds.indexOf(s.id);
+    if (ci>=0) { b.style.borderColor=COLORS[(ci+1)%COLORS.length]; b.style.color=COLORS[(ci+1)%COLORS.length]; }
+    b.textContent = s.name;
+    b.onclick = () => selectSound(s.id);
+    soundsBar.appendChild(b);
+  });
+}
+
+function buildLegend() {
+  if (cmpIds.length===0) { legendEl.style.display='none'; return; }
+  legendEl.style.display='flex';
+  legendEl.innerHTML='<span>OVERLAY:</span>';
+  const sel = SOUNDS.find(s=>s.id===selId);
+  [{id:selId,ci:0}, ...cmpIds.filter(id=>id!==selId).map((id,i)=>({id,ci:i+1}))].forEach(({id,ci})=>{
+    const s=SOUNDS.find(s=>s.id===id); if(!s) return;
+    const col=COLORS[ci%COLORS.length];
+    legendEl.innerHTML+=`<span class="litem"><span class="ldot" style="background:${col}"></span><span style="color:${col}">${s.name}</span></span>`;
+  });
+}
+
+function selectSound(id) {
+  if (cmpMode) {
+    const i=cmpIds.indexOf(id);
+    if (i>=0) cmpIds.splice(i,1);
+    else if (id!==selId) cmpIds.push(id);
+  }
+  selId=id;
+  buildSoundBtns(); buildLegend(); updateInfo(); redraw();
+}
+
+function updateInfo() {
+  const s=SOUNDS.find(s=>s.id===selId); if(!s) return;
+  document.getElementById('infoName').textContent = s.name;
+  document.getElementById('infoCat').textContent  = s.cat;
+  document.getElementById('infoDesc').textContent = s.desc;
+  document.getElementById('infoModel').textContent= s.model;
+}
+
+// ── DRAWING ───────────────────────────────────────────────────────────────────
+
+function setupCanvas(canvas, panelPad) {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const dpr  = window.devicePixelRatio || 1;
+  const W = rect.width - panelPad;
+  canvas.width  = W * dpr;
+  canvas.height = canvas.height; // keep existing
+  canvas.style.width  = W + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return {W, H: canvas.height / dpr, ctx};
+}
+
+function drawBode() {
+  const dpr = window.devicePixelRatio || 1;
+  const panelW = bodeCanvas.parentElement.getBoundingClientRect().width - 32;
+  const totalH = 340;
+  bodeCanvas.width  = panelW * dpr;
+  bodeCanvas.height = totalH * dpr;
+  bodeCanvas.style.width  = panelW + 'px';
+  bodeCanvas.style.height = totalH + 'px';
+  bCtx.setTransform(dpr,0,0,dpr,0,0);
+
+  const W = panelW, H = totalH;
+  const padL=50, padR=12, padT=10, padMid=30, padB=34;
+  const magH = Math.floor((H - padT - padMid - padB) * 0.62);
+  const phH  = H - padT - magH - padMid - padB;
+  const pw   = W - padL - padR;
+
+  const fmin=20, fmax=20000;
+  const dBmin=-50, dBmax=20;
+  const phMin=-Math.PI, phMax=Math.PI;
+
+  const xF  = f  => padL + pw * Math.log10(f/fmin) / Math.log10(fmax/fmin);
+  const yMag = db => padT + magH * (1-(db-dBmin)/(dBmax-dBmin));
+  const yPh  = ph => padT+magH+padMid + phH*(1-(ph-phMin)/(phMax-phMin));
+
+  bCtx.fillStyle='#090910'; bCtx.fillRect(0,0,W,H);
+
+  // grid helpers
+  const gridLine = (x1,y1,x2,y2,col,w=1) => {
+    bCtx.beginPath(); bCtx.strokeStyle=col; bCtx.lineWidth=w;
+    bCtx.moveTo(x1,y1); bCtx.lineTo(x2,y2); bCtx.stroke();
+  };
+
+  // Frequency grid (shared x)
+  const freqTicks = [20,30,50,100,200,500,1000,2000,5000,10000,20000];
+  freqTicks.forEach(f => {
+    const x=xF(f); const maj=[20,100,1000,10000,20000].includes(f);
+    gridLine(x,padT, x,padT+magH, maj?'#1e1e30':'#141420');
+    gridLine(x,padT+magH+padMid, x,padT+magH+padMid+phH, maj?'#1e1e30':'#141420');
+  });
+
+  // Magnitude grid
+  for(let db=dBmin;db<=dBmax;db+=10) {
+    const y=yMag(db);
+    gridLine(padL,y,padL+pw,y, db===0?'#252545':db===-10?'#1a1a2e':'#121222', db===0?1.5:1);
+  }
+  // Phase grid
+  [-Math.PI,-Math.PI/2,0,Math.PI/2,Math.PI].forEach(ph => {
+    const y=yPh(ph);
+    gridLine(padL,y,padL+pw,y, ph===0?'#252545':'#121222', ph===0?1.5:1);
+  });
+
+  // Axis labels — magnitude
+  bCtx.fillStyle='#555568'; bCtx.font='10px Courier New'; bCtx.textAlign='right';
+  for(let db=dBmin;db<=dBmax;db+=10) bCtx.fillText(db+'',padL-4,yMag(db)+3.5);
+  bCtx.textAlign='center';
+  bCtx.save(); bCtx.translate(11,padT+magH/2); bCtx.rotate(-Math.PI/2);
+  bCtx.fillText('dB',0,0); bCtx.restore();
+
+  // Axis labels — phase
+  bCtx.textAlign='right';
+  [[-Math.PI,'-π'],[-Math.PI/2,'-π/2'],[0,'0'],[Math.PI/2,'π/2'],[Math.PI,'π']].forEach(([ph,lbl]) => {
+    bCtx.fillText(lbl, padL-4, yPh(ph)+3.5);
+  });
+  bCtx.save(); bCtx.translate(11,padT+magH+padMid+phH/2); bCtx.rotate(-Math.PI/2);
+  bCtx.fillText('∠ rad',0,0); bCtx.restore();
+
+  // Frequency axis labels (bottom)
+  bCtx.textAlign='center';
+  [[20,'20'],[100,'100'],[1000,'1k'],[10000,'10k'],[20000,'20k']].forEach(([f,lbl]) => {
+    bCtx.fillText(lbl, xF(f), H-padB+14);
+  });
+  bCtx.fillText('Hz', padL+pw/2, H-padB+26);
+
+  // Sub-plot labels
+  bCtx.textAlign='left'; bCtx.fillStyle='#333348'; bCtx.font='9px Courier New';
+  bCtx.fillText('MAGNITUDE',padL+3,padT+magH-3);
+  bCtx.fillText('PHASE',    padL+3,padT+magH+padMid+phH-3);
+
+  // Curves
+  const allIds = [selId, ...cmpIds.filter(id=>id!==selId)];
+  const N=500;
+
+  allIds.forEach((id,idx) => {
+    const s = SOUNDS.find(s=>s.id===id); if(!s) return;
+    const col = COLORS[idx%COLORS.length];
+    const alpha = idx===0?1.0:0.65;
+
+    // Magnitude curve
+    bCtx.beginPath(); bCtx.strokeStyle=col; bCtx.lineWidth=1.8; bCtx.globalAlpha=alpha;
+    let first=true;
+    for(let i=0;i<=N;i++){
+      const f=fmin*Math.pow(fmax/fmin,i/N);
+      const y=yMag(Math.max(dBmin,Math.min(dBmax, s.bode(f))));
+      const x=xF(f);
+      if(first){bCtx.moveTo(x,y);first=false;}else bCtx.lineTo(x,y);
+    }
+    bCtx.stroke();
+
+    // Phase curve
+    bCtx.beginPath(); bCtx.strokeStyle=col; bCtx.lineWidth=1.2; bCtx.globalAlpha=alpha*0.7;
+    first=true;
+    for(let i=0;i<=N;i++){
+      const f=fmin*Math.pow(fmax/fmin,i/N);
+      let ph=s.phase(f);
+      // unwrap to [-π,π]
+      while(ph>Math.PI)  ph-=2*Math.PI;
+      while(ph<-Math.PI) ph+=2*Math.PI;
+      const y=yPh(Math.max(phMin,Math.min(phMax,ph)));
+      const x=xF(f);
+      if(first){bCtx.moveTo(x,y);first=false;}else bCtx.lineTo(x,y);
+    }
+    bCtx.stroke();
+    bCtx.globalAlpha=1;
+  });
+
+  // Borders
+  bCtx.strokeStyle='#252535'; bCtx.lineWidth=1;
+  bCtx.strokeRect(padL,padT,pw,magH);
+  bCtx.strokeRect(padL,padT+magH+padMid,pw,phH);
+}
+
+function drawWaveform() {
+  const s = SOUNDS.find(s=>s.id===selId); if(!s) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const panelW = waveCanvas.parentElement.getBoundingClientRect().width - 32;
+  const H = 340;
+  waveCanvas.width  = panelW * dpr;
+  waveCanvas.height = H * dpr;
+  waveCanvas.style.width  = panelW + 'px';
+  waveCanvas.style.height = H + 'px';
+  wCtx.setTransform(dpr,0,0,dpr,0,0);
+
+  const W=panelW;
+  const padL=38, padR=12, padT=10, padB=34;
+  const pw=W-padL-padR, ph=H-padT-padB;
+
+  // Background — slight CRT vignette
+  wCtx.fillStyle='#070c0a'; wCtx.fillRect(0,0,W,H);
+
+  // Grid
+  const gridLine=(x1,y1,x2,y2,col,lw=1)=>{
+    wCtx.beginPath();wCtx.strokeStyle=col;wCtx.lineWidth=lw;
+    wCtx.moveTo(x1,y1);wCtx.lineTo(x2,y2);wCtx.stroke();
+  };
+  for(let i=0;i<=4;i++) gridLine(padL+pw*i/4,padT,padL+pw*i/4,padT+ph,'#0e1a14');
+  for(let i=0;i<=4;i++) gridLine(padL,padT+ph*i/4,padL+pw,padT+ph*i/4,i===2?'#182818':'#0e1a14',i===2?1.5:1);
+
+  // y-axis labels
+  wCtx.fillStyle='#334433'; wCtx.font='10px Courier New'; wCtx.textAlign='right';
+  [['+1',0],['+0.5',0.25],['0',0.5],['-0.5',0.75],['-1',1]].forEach(([lbl,frac])=>{
+    wCtx.fillText(lbl, padL-3, padT+ph*frac+3.5);
+  });
+  wCtx.save(); wCtx.translate(10,padT+ph/2); wCtx.rotate(-Math.PI/2);
+  wCtx.textAlign='center'; wCtx.fillText('amp',0,0); wCtx.restore();
+
+  // x-axis labels
+  wCtx.textAlign='center'; wCtx.fillStyle='#334433';
+  for(let i=0;i<=4;i++){
+    const ms=(s.dur*i/4*1000).toFixed(s.dur<0.1?1:0);
+    wCtx.fillText(ms+'ms', padL+pw*i/4, H-padB+14);
+  }
+  wCtx.fillText('time', padL+pw/2, H-padB+26);
+
+  // Waveform samples
+  const N = Math.max(800, pw*2)|0;
+  const xs=[], ys=[];
+  let peak=0;
+  for(let i=0;i<=N;i++){
+    const t=s.dur*i/N;
+    const v=s.wave(t);
+    if(Math.abs(v)>peak) peak=Math.abs(v);
+    xs.push(padL+pw*i/N);
+    ys.push(v);
+  }
+  const scale = peak>0.02 ? 1/peak : 1;
+
+  // Glow pass (wider, transparent)
+  const drawTrace=(lw,alpha,col)=>{
+    wCtx.beginPath(); wCtx.strokeStyle=col; wCtx.lineWidth=lw; wCtx.globalAlpha=alpha;
+    const yv=v=>padT+ph/2 - v*scale*ph/2;
+    wCtx.moveTo(xs[0],yv(ys[0]));
+    for(let i=1;i<=N;i++) wCtx.lineTo(xs[i],yv(ys[i]));
+    wCtx.stroke(); wCtx.globalAlpha=1;
+  };
+  drawTrace(6,  0.04,'#3ecf7a');
+  drawTrace(3,  0.10,'#3ecf7a');
+  drawTrace(1.5,1.00,'#3ecf7a');
+
+  // Envelope overlay (dimmer)
+  wCtx.beginPath(); wCtx.strokeStyle='rgba(60,180,80,0.15)'; wCtx.lineWidth=1; wCtx.setLineDash([2,3]);
+  {
+    const eN=120;
+    const yv=v=>padT+ph/2-v*scale*ph/2;
+    let first=true;
+    for(let i=0;i<=eN;i++){
+      const t=s.dur*i/eN;
+      const v=s.wave(t);
+      const x=padL+pw*i/eN;
+      const y=yv(Math.abs(v));
+      if(first){wCtx.moveTo(x,y);first=false;}else wCtx.lineTo(x,y);
+    }
+    wCtx.stroke();
+    wCtx.beginPath(); first=true;
+    for(let i=0;i<=eN;i++){
+      const t=s.dur*i/eN;
+      const v=s.wave(t);
+      const x=padL+pw*i/eN;
+      const y=yv(-Math.abs(v));
+      if(first){wCtx.moveTo(x,y);first=false;}else wCtx.lineTo(x,y);
+    }
+    wCtx.stroke();
+  }
+  wCtx.setLineDash([]);
+
+  // Border
+  wCtx.strokeStyle='#1a2a1a'; wCtx.lineWidth=1;
+  wCtx.strokeRect(padL,padT,pw,ph);
+}
+
+function redraw() { drawBode(); drawWaveform(); }
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+buildSoundBtns();
+updateInfo();
+setTimeout(redraw, 60);
+window.addEventListener('resize', () => setTimeout(redraw,30));
+</script>
+</body>
+</html>
