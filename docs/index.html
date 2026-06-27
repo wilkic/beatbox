@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Electronic Percussion — Sound Reference</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -22,44 +23,54 @@
 }
 body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; font-size: 12px; }
 
-header { padding: 14px 20px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: baseline; gap: 20px; }
+header { padding: 12px 16px 10px; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 20px; }
 header h1 { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); }
 header p  { color: var(--dim); font-size: 10px; }
 
-.controls { display: flex; align-items: center; gap: 16px; padding: 8px 20px; border-bottom: 1px solid var(--border); }
-.controls label { color: var(--dim); font-size: 10px; display: flex; align-items: center; gap: 5px; cursor: pointer; }
-.controls input[type=checkbox] { accent-color: var(--accent); }
-.hint { color: var(--dim); font-size: 10px; margin-left: auto; }
-#clearCompare { background: none; border: 1px solid var(--border); color: var(--dim); padding: 3px 10px; cursor: pointer; font-family: inherit; font-size: 10px; letter-spacing: 1px; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 8px 16px; border-bottom: 1px solid var(--border); }
+.controls label { color: var(--dim); font-size: 10px; display: flex; align-items: center; gap: 5px; cursor: pointer; min-height: 32px; }
+.controls input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
+.hint { color: var(--dim); font-size: 10px; }
+#clearCompare { background: none; border: 1px solid var(--border); color: var(--dim); padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 10px; letter-spacing: 1px; min-height: 32px; }
 #clearCompare:hover { border-color: var(--accent); color: var(--accent); }
 
-.cat-bar { display: flex; gap: 3px; padding: 8px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.cat-btn { background: none; border: 1px solid var(--border); color: var(--dim); padding: 3px 12px; cursor: pointer; font-family: inherit; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+.cat-bar { display: flex; gap: 4px; padding: 8px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.cat-btn { background: none; border: 1px solid var(--border); color: var(--dim); padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; min-height: 32px; }
 .cat-btn.active { border-color: var(--accent); color: var(--accent); }
 .cat-btn:hover:not(.active) { border-color: var(--dim); color: var(--text); }
 
-.sounds-bar { display: flex; gap: 4px; padding: 8px 20px; flex-wrap: wrap; min-height: 42px; border-bottom: 1px solid var(--border); }
-.snd-btn { background: var(--bg2); border: 1px solid var(--border); color: var(--text); padding: 4px 10px; cursor: pointer; font-family: inherit; font-size: 10px; letter-spacing: 0.5px; }
+.sounds-bar { display: flex; gap: 5px; padding: 8px 16px; flex-wrap: wrap; min-height: 46px; border-bottom: 1px solid var(--border); }
+.snd-btn { background: var(--bg2); border: 1px solid var(--border); color: var(--text); padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 10px; letter-spacing: 0.5px; min-height: 32px; }
 .snd-btn:hover { border-color: #444; }
 .snd-btn.sel { border-color: var(--accent); color: var(--accent); background: rgba(78,158,245,0.07); }
 
-.legend { display: flex; gap: 16px; align-items: center; padding: 5px 20px; font-size: 10px; color: var(--dim); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.legend { display: flex; gap: 16px; align-items: center; padding: 5px 16px; font-size: 10px; color: var(--dim); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .litem { display: flex; align-items: center; gap: 5px; }
 .ldot { width: 16px; height: 2px; display: inline-block; }
 
 .plots { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
-.panel { background: var(--bg); padding: 14px 16px 10px; }
+.panel { background: var(--bg); padding: 14px 16px 10px; min-width: 0; }
 .panel-title { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 8px; }
-canvas { display: block; }
+canvas { display: block; max-width: 100%; }
 
 .info { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border-top: 1px solid var(--border); }
-.info-left { background: var(--bg); padding: 14px 20px; }
-.info-right { background: var(--bg2); padding: 14px 20px; }
+.info-left { background: var(--bg); padding: 14px 16px; }
+.info-right { background: var(--bg2); padding: 14px 16px; }
 .info-name { font-size: 15px; color: var(--accent); letter-spacing: 2px; margin-bottom: 3px; }
 .info-cat  { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
-.info-desc { color: var(--text); line-height: 1.7; font-size: 11px; max-width: 580px; }
+.info-desc { color: var(--text); line-height: 1.7; font-size: 11px; }
 .model-title { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--amber); margin-bottom: 8px; }
-.model-body { color: var(--green); line-height: 1.9; font-size: 11px; white-space: pre; }
+.model-body { color: var(--green); line-height: 1.9; font-size: 11px; white-space: pre-wrap; word-break: break-word; }
+
+@media (max-width: 700px) {
+  header h1 { font-size: 11px; letter-spacing: 2px; }
+  header p { display: none; }
+  .hint { display: none; }
+  .controls { gap: 8px; }
+  .plots { grid-template-columns: 1fr; }
+  .info  { grid-template-columns: 1fr; }
+  .info-right { border-top: 1px solid var(--border); }
+}
 </style>
 </head>
 <body>
