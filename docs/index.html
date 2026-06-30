@@ -63,6 +63,7 @@ header p  { color: var(--dim); font-size: 10px; }
 .snd-del { margin-left: 5px; font-size: 13px; opacity: 0.3; vertical-align: middle; }
 .snd-btn:hover .snd-del { opacity: 0.6; }
 .snd-del:hover { color: var(--red) !important; opacity: 1 !important; }
+.snd-rename-input { background: transparent; border: none; border-bottom: 1px solid var(--accent); color: var(--accent); font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 0.5px; outline: none; padding: 0; margin: 0; min-width: 40px; }
 
 .legend { display: flex; gap: 16px; align-items: center; padding: 5px 16px; font-size: 10px; color: var(--dim); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .litem { display: flex; align-items: center; gap: 5px; }
@@ -547,6 +548,8 @@ function buildSoundBtns() {
       del.onclick = e => { e.stopPropagation(); deleteAnalyzed(s.id); };
       b.appendChild(nameSpan);
       b.appendChild(del);
+      b.title = 'Double-click to rename';
+      b.ondblclick = e => { e.preventDefault(); startRename(s, nameSpan); };
     } else {
       b.textContent = s.name;
     }
@@ -572,6 +575,8 @@ function selectSound(id) {
     const i=cmpIds.indexOf(id);
     if (i>=0) cmpIds.splice(i,1);
     else if (id!==selId) cmpIds.push(id);
+  } else if (selId === id) {
+    return; // already selected — preserve DOM so dblclick can fire
   }
   selId=id;
   buildSoundBtns(); buildLegend(); updateInfo(); updateCropBar(); redraw();
@@ -926,7 +931,10 @@ document.getElementById('cropResetBtn').onclick = () => {
 document.getElementById('cropSaveBtn').onclick = () => {
   const s = SOUNDS.find(s => s.id === selId);
   if (!s || s.cat !== 'Analyzed') return;
-  const wav = encodeWAV(s._rawData, s._sampleRate);
+  const s0 = (s._cropStart * s._sampleRate) | 0;
+  const s1 = (s._cropEnd   * s._sampleRate) | 0;
+  const region = s._rawData.subarray(s0, s1);
+  const wav = encodeWAV(region, s._sampleRate);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([wav], { type: 'audio/wav' }));
   a.download = s.name.replace(/[^a-z0-9_-]/gi, '_') + '.wav';
@@ -1534,6 +1542,7 @@ const IDB = (() => {
     save:    async (name, ab) => { const d = await open(); return new Promise((res,rej) => { const tx=d.transaction('recs','readwrite'); const r=tx.objectStore('recs').add({name,data:ab,ts:Date.now()}); r.onsuccess=e=>res(e.target.result); tx.onerror=rej; }); },
     loadAll: async ()         => { const d = await open(); return new Promise((res,rej) => { const r=d.transaction('recs').objectStore('recs').getAll(); r.onsuccess=e=>res(e.target.result); r.onerror=rej; }); },
     delete:  async id         => { const d = await open(); return new Promise((res,rej) => { const tx=d.transaction('recs','readwrite'); tx.objectStore('recs').delete(id); tx.oncomplete=res; tx.onerror=rej; }); },
+    rename:  async (id, name) => { const d = await open(); return new Promise((res,rej) => { const tx=d.transaction('recs','readwrite'); const store=tx.objectStore('recs'); const req=store.get(id); req.onsuccess=e=>{ const r=e.target.result; if(r){r.name=name; store.put(r);} }; tx.oncomplete=res; tx.onerror=rej; }); },
   };
 })();
 
@@ -1594,6 +1603,33 @@ document.getElementById('recordBtn').onclick = async () => {
 };
 
 // ── ANALYZED SOUND MANAGEMENT ────────────────────────────────────────────────
+
+function startRename(s, nameSpan) {
+  const original = s.name;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'snd-rename-input';
+  input.value = s.name;
+  input.size = Math.max(s.name.length + 2, 8);
+  nameSpan.replaceWith(input);
+  input.focus();
+  input.select();
+
+  const commit = () => {
+    const newName = input.value.trim() || original;
+    s.name = newName;
+    if (s._idbId != null) IDB.rename(s._idbId, newName).catch(() => {});
+    buildSoundBtns();
+    updateInfo();
+  };
+
+  input.onblur = commit;
+  input.onkeydown = e => {
+    if (e.key === 'Enter')  { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.value = original; input.blur(); }
+    e.stopPropagation();
+  };
+}
 
 function deleteAnalyzed(id) {
   const s = SOUNDS.find(s => s.id === id);
