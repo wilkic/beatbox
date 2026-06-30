@@ -51,7 +51,7 @@ header p  { color: var(--dim); font-size: 10px; }
 .litem { display: flex; align-items: center; gap: 5px; }
 .ldot { width: 16px; height: 2px; display: inline-block; }
 
-.plots { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
+.plots { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1px; background: var(--border); }
 .panel { background: var(--bg); padding: 14px 16px 10px; min-width: 0; }
 .panel-title { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 8px; }
 canvas { display: block; max-width: 100%; }
@@ -71,6 +71,8 @@ canvas { display: block; max-width: 100%; }
   .hint { display: none; }
   .controls { gap: 8px; }
   .plots { grid-template-columns: 1fr; }
+  .nyq-hide { display: none; }
+  .nic-hide { display: none; }
   .info  { grid-template-columns: 1fr; }
   .info-right { border-top: 1px solid var(--border); }
 }
@@ -102,6 +104,14 @@ canvas { display: block; max-width: 100%; }
   <div class="panel">
     <div class="panel-title">Waveform — Time Domain Envelope</div>
     <canvas id="waveCanvas"></canvas>
+  </div>
+  <div class="panel nyq-hide">
+    <div class="panel-title">Nyquist Plot — H(jω) in the Complex Plane</div>
+    <canvas id="nyqCanvas"></canvas>
+  </div>
+  <div class="panel nic-hide">
+    <div class="panel-title">Nichols Chart — Gain vs Phase</div>
+    <canvas id="nicCanvas"></canvas>
   </div>
 </div>
 
@@ -456,8 +466,12 @@ const soundsBar= document.getElementById('soundsBar');
 const legendEl = document.getElementById('legend');
 const bodeCanvas = document.getElementById('bodeCanvas');
 const waveCanvas = document.getElementById('waveCanvas');
+const nyqCanvas  = document.getElementById('nyqCanvas');
+const nicCanvas  = document.getElementById('nicCanvas');
 const bCtx = bodeCanvas.getContext('2d');
 const wCtx = waveCanvas.getContext('2d');
+const nCtx = nyqCanvas.getContext('2d');
+const kCtx = nicCanvas.getContext('2d');
 
 CATS.forEach(c => {
   const b = document.createElement('button');
@@ -759,7 +773,322 @@ function drawWaveform() {
   wCtx.strokeRect(padL,padT,pw,ph);
 }
 
-function redraw() { drawBode(); drawWaveform(); }
+// ── NYQUIST ───────────────────────────────────────────────────────────────────
+
+function niceStep(raw) {
+  if (raw <= 0) return 1;
+  const e = Math.floor(Math.log10(raw));
+  const f = raw / Math.pow(10, e);
+  return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * Math.pow(10, e);
+}
+
+function niceLabel(v) {
+  const a = Math.abs(v);
+  const s = a >= 10 ? v.toFixed(0) : a >= 1 ? v.toFixed(1) : a >= 0.1 ? v.toFixed(2) : v.toFixed(3);
+  if (!s.includes('.')) return s;
+  return s.replace(/\.?0+$/, '');
+}
+
+function drawNyquist() {
+  const dpr = window.devicePixelRatio || 1;
+  const panelW = nyqCanvas.parentElement.getBoundingClientRect().width - 32;
+  const H = 340;
+  nyqCanvas.width  = panelW * dpr;
+  nyqCanvas.height = H * dpr;
+  nyqCanvas.style.width  = panelW + 'px';
+  nyqCanvas.style.height = H + 'px';
+  nCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const W = panelW;
+  const padL = 50, padR = 12, padT = 10, padB = 34;
+  const pw = W - padL - padR, ph = H - padT - padB;
+
+  nCtx.fillStyle = '#090910';
+  nCtx.fillRect(0, 0, W, H);
+
+  const fmin = 20, fmax = 20000, N = 600;
+  const allIds = [selId, ...cmpIds.filter(id => id !== selId)];
+
+  // Convert each sound's bode/phase to Re/Im at N+1 frequencies
+  const curves = allIds.map((id, idx) => {
+    const s = SOUNDS.find(s => s.id === id);
+    if (!s) return null;
+    const pts = [];
+    for (let i = 0; i <= N; i++) {
+      const f   = fmin * Math.pow(fmax / fmin, i / N);
+      const mag = Math.pow(10, Math.max(-60, Math.min(40, s.bode(f))) / 20);
+      const ph  = s.phase(f);
+      pts.push({ f, re: mag * Math.cos(ph), im: mag * Math.sin(ph) });
+    }
+    return { id, pts, col: COLORS[idx % COLORS.length], idx };
+  }).filter(Boolean);
+
+  if (!curves.length) return;
+
+  // Bounding box — always include origin so axes are visible
+  let reMin = 0, reMax = 0, imMin = 0, imMax = 0;
+  for (const c of curves) for (const p of c.pts) {
+    if (p.re < reMin) reMin = p.re; if (p.re > reMax) reMax = p.re;
+    if (p.im < imMin) imMin = p.im; if (p.im > imMax) imMax = p.im;
+  }
+
+  // Equal-aspect scaling
+  const rawSpan = Math.max(reMax - reMin, imMax - imMin, 0.1);
+  const margin  = rawSpan * 0.12 + 0.02;
+  const span    = rawSpan + 2 * margin;
+  const reCtr   = (reMin + reMax) / 2;
+  const imCtr   = (imMin + imMax) / 2;
+  const ppu     = Math.min(pw, ph) / span;  // pixels per unit
+
+  const toX = re => padL + pw / 2 + (re - reCtr) * ppu;
+  const toY = im => padT + ph / 2 - (im - imCtr) * ppu;  // screen y flipped
+
+  // Visible coordinate half-extents
+  const halfRe = (pw / 2) / ppu;
+  const halfIm = (ph / 2) / ppu;
+
+  // ── Clip to plot area ──
+  nCtx.save();
+  nCtx.beginPath(); nCtx.rect(padL, padT, pw, ph); nCtx.clip();
+
+  // Grid
+  const step = niceStep(span / 5);
+  for (let v = Math.ceil((reCtr - halfRe) / step) * step; v <= reCtr + halfRe + 1e-9; v += step) {
+    const x = toX(v);
+    nCtx.beginPath();
+    nCtx.strokeStyle = Math.abs(v) < step * 0.01 ? '#252545' : '#141420';
+    nCtx.lineWidth   = Math.abs(v) < step * 0.01 ? 1.5 : 1;
+    nCtx.moveTo(x, padT); nCtx.lineTo(x, padT + ph); nCtx.stroke();
+  }
+  for (let v = Math.ceil((imCtr - halfIm) / step) * step; v <= imCtr + halfIm + 1e-9; v += step) {
+    const y = toY(v);
+    nCtx.beginPath();
+    nCtx.strokeStyle = Math.abs(v) < step * 0.01 ? '#252545' : '#141420';
+    nCtx.lineWidth   = Math.abs(v) < step * 0.01 ? 1.5 : 1;
+    nCtx.moveTo(padL, y); nCtx.lineTo(padL + pw, y); nCtx.stroke();
+  }
+
+  // Curves, arrows, frequency dots
+  for (const curve of curves) {
+    const alpha = curve.idx === 0 ? 1.0 : 0.65;
+    nCtx.globalAlpha = alpha;
+
+    // Curve
+    nCtx.beginPath(); nCtx.strokeStyle = curve.col; nCtx.lineWidth = 1.8;
+    let first = true;
+    for (const p of curve.pts) {
+      const x = toX(p.re), y = toY(p.im);
+      if (first) { nCtx.moveTo(x, y); first = false; } else nCtx.lineTo(x, y);
+    }
+    nCtx.stroke();
+
+    // Direction arrowhead near 2 kHz to show ω increasing
+    const ai = Math.round(Math.log10(2000 / fmin) / Math.log10(fmax / fmin) * N);
+    if (ai > 5 && ai < N - 5) {
+      const p0 = curve.pts[ai - 5], p1 = curve.pts[ai + 5];
+      const ang = Math.atan2(toY(p1.im) - toY(p0.im), toX(p1.re) - toX(p0.re));
+      const mx = toX(curve.pts[ai].re), my = toY(curve.pts[ai].im);
+      nCtx.beginPath(); nCtx.strokeStyle = curve.col; nCtx.lineWidth = 1.5;
+      nCtx.moveTo(mx, my); nCtx.lineTo(mx - 7 * Math.cos(ang - 0.42), my - 7 * Math.sin(ang - 0.42));
+      nCtx.moveTo(mx, my); nCtx.lineTo(mx - 7 * Math.cos(ang + 0.42), my - 7 * Math.sin(ang + 0.42));
+      nCtx.stroke();
+    }
+
+    // Frequency marker dots at 100 Hz, 1 kHz, 10 kHz
+    [100, 1000, 10000].forEach(mf => {
+      const mi = Math.round(Math.log10(mf / fmin) / Math.log10(fmax / fmin) * N);
+      if (mi < 0 || mi > N) return;
+      nCtx.beginPath(); nCtx.arc(toX(curve.pts[mi].re), toY(curve.pts[mi].im), 3, 0, 2 * Math.PI);
+      nCtx.fillStyle = curve.col; nCtx.fill();
+    });
+
+    nCtx.globalAlpha = 1;
+  }
+
+  // Legend for frequency dots
+  nCtx.fillStyle = '#333348'; nCtx.font = '9px Courier New'; nCtx.textAlign = 'left';
+  nCtx.fillText('• 100 Hz   • 1 kHz   • 10 kHz', padL + 4, padT + ph - 5);
+  nCtx.fillText('NYQUIST', padL + 3, padT + 10);
+
+  nCtx.restore();  // un-clip
+
+  // ── Tick labels in padding ─────────────────────────────────────────────────
+  nCtx.fillStyle = '#555568'; nCtx.font = '10px Courier New';
+
+  // Re axis: labels below the plot
+  nCtx.textAlign = 'center';
+  for (let v = Math.ceil((reCtr - halfRe) / step) * step; v <= reCtr + halfRe + 1e-9; v += step) {
+    const x = toX(v);
+    if (x < padL || x > padL + pw) continue;
+    nCtx.fillText(niceLabel(v), x, padT + ph + 14);
+  }
+
+  // Im axis: labels left of the plot (skip 0 — covered by Re labels)
+  nCtx.textAlign = 'right';
+  for (let v = Math.ceil((imCtr - halfIm) / step) * step; v <= imCtr + halfIm + 1e-9; v += step) {
+    if (Math.abs(v) < step * 0.01) continue;
+    const y = toY(v);
+    if (y < padT || y > padT + ph) continue;
+    nCtx.fillText(niceLabel(v), padL - 4, y + 3.5);
+  }
+
+  // Axis labels
+  nCtx.textAlign = 'center';
+  nCtx.fillText('Re(H)', padL + pw / 2, H - 2);
+  nCtx.save(); nCtx.translate(11, padT + ph / 2); nCtx.rotate(-Math.PI / 2);
+  nCtx.fillText('Im(H)', 0, 0); nCtx.restore();
+
+  // Border
+  nCtx.strokeStyle = '#252535'; nCtx.lineWidth = 1;
+  nCtx.strokeRect(padL, padT, pw, ph);
+}
+
+// ── NICHOLS ───────────────────────────────────────────────────────────────────
+
+function drawNichols() {
+  const dpr = window.devicePixelRatio || 1;
+  const panelW = nicCanvas.parentElement.getBoundingClientRect().width - 32;
+  const H = 340;
+  nicCanvas.width  = panelW * dpr;
+  nicCanvas.height = H * dpr;
+  nicCanvas.style.width  = panelW + 'px';
+  nicCanvas.style.height = H + 'px';
+  kCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const W = panelW;
+  const padL = 50, padR = 12, padT = 10, padB = 34;
+  const pw = W - padL - padR, ph = H - padT - padB;
+
+  kCtx.fillStyle = '#090910';
+  kCtx.fillRect(0, 0, W, H);
+
+  const fmin = 20, fmax = 20000, N = 600;
+  const allIds = [selId, ...cmpIds.filter(id => id !== selId)];
+
+  const curves = allIds.map((id, idx) => {
+    const s = SOUNDS.find(s => s.id === id);
+    if (!s) return null;
+    const pts = [];
+    for (let i = 0; i <= N; i++) {
+      const f  = fmin * Math.pow(fmax / fmin, i / N);
+      const db = Math.max(-60, Math.min(40, s.bode(f)));
+      let deg  = s.phase(f) * 180 / Math.PI;
+      while (deg >  180) deg -= 360;
+      while (deg < -180) deg += 360;
+      pts.push({ f, deg, db });
+    }
+    return { id, pts, col: COLORS[idx % COLORS.length], idx };
+  }).filter(Boolean);
+
+  if (!curves.length) return;
+
+  // Fixed Y (dB), auto-scale X (phase degrees) — always include 0°
+  const dBmin = -50, dBmax = 20;
+  let degMin = 0, degMax = 0;
+  for (const c of curves) for (const p of c.pts) {
+    if (p.deg < degMin) degMin = p.deg;
+    if (p.deg > degMax) degMax = p.deg;
+  }
+  const degSpan   = Math.max(degMax - degMin, 30);
+  const degMargin = degSpan * 0.08 + 5;
+  degMin -= degMargin; degMax += degMargin;
+
+  const toX = d  => padL + pw * (d - degMin) / (degMax - degMin);
+  const toY = db => padT + ph * (1 - (db - dBmin) / (dBmax - dBmin));
+
+  kCtx.save();
+  kCtx.beginPath(); kCtx.rect(padL, padT, pw, ph); kCtx.clip();
+
+  // Horizontal grid — dB
+  for (let db = dBmin; db <= dBmax; db += 10) {
+    const y = toY(db);
+    kCtx.beginPath();
+    kCtx.strokeStyle = db === 0 ? '#252545' : '#141420';
+    kCtx.lineWidth   = db === 0 ? 1.5 : 1;
+    kCtx.moveTo(padL, y); kCtx.lineTo(padL + pw, y); kCtx.stroke();
+  }
+
+  // Vertical grid — phase degrees
+  const degStep = niceStep((degMax - degMin) / 5);
+  for (let v = Math.ceil(degMin / degStep) * degStep; v <= degMax + 1e-9; v += degStep) {
+    const x = toX(v);
+    kCtx.beginPath();
+    kCtx.strokeStyle = Math.abs(v) < degStep * 0.01 ? '#252545' : '#141420';
+    kCtx.lineWidth   = Math.abs(v) < degStep * 0.01 ? 1.5 : 1;
+    kCtx.moveTo(x, padT); kCtx.lineTo(x, padT + ph); kCtx.stroke();
+  }
+
+  // Curves, arrows, frequency dots
+  for (const curve of curves) {
+    const alpha = curve.idx === 0 ? 1.0 : 0.65;
+    kCtx.globalAlpha = alpha;
+
+    kCtx.beginPath(); kCtx.strokeStyle = curve.col; kCtx.lineWidth = 1.8;
+    let first = true;
+    for (const p of curve.pts) {
+      const x = toX(p.deg), y = toY(p.db);
+      if (first) { kCtx.moveTo(x, y); first = false; } else kCtx.lineTo(x, y);
+    }
+    kCtx.stroke();
+
+    // Direction arrow near 2 kHz
+    const ai = Math.round(Math.log10(2000 / fmin) / Math.log10(fmax / fmin) * N);
+    if (ai > 5 && ai < N - 5) {
+      const p0 = curve.pts[ai - 5], p1 = curve.pts[ai + 5];
+      const ang = Math.atan2(toY(p1.db) - toY(p0.db), toX(p1.deg) - toX(p0.deg));
+      const mx = toX(curve.pts[ai].deg), my = toY(curve.pts[ai].db);
+      kCtx.beginPath(); kCtx.strokeStyle = curve.col; kCtx.lineWidth = 1.5;
+      kCtx.moveTo(mx, my); kCtx.lineTo(mx - 7 * Math.cos(ang - 0.42), my - 7 * Math.sin(ang - 0.42));
+      kCtx.moveTo(mx, my); kCtx.lineTo(mx - 7 * Math.cos(ang + 0.42), my - 7 * Math.sin(ang + 0.42));
+      kCtx.stroke();
+    }
+
+    // Frequency dots at 100 Hz, 1 kHz, 10 kHz
+    [100, 1000, 10000].forEach(mf => {
+      const mi = Math.round(Math.log10(mf / fmin) / Math.log10(fmax / fmin) * N);
+      if (mi < 0 || mi > N) return;
+      kCtx.beginPath(); kCtx.arc(toX(curve.pts[mi].deg), toY(curve.pts[mi].db), 3, 0, 2 * Math.PI);
+      kCtx.fillStyle = curve.col; kCtx.fill();
+    });
+
+    kCtx.globalAlpha = 1;
+  }
+
+  kCtx.fillStyle = '#333348'; kCtx.font = '9px Courier New'; kCtx.textAlign = 'left';
+  kCtx.fillText('• 100 Hz   • 1 kHz   • 10 kHz', padL + 4, padT + ph - 5);
+  kCtx.fillText('NICHOLS', padL + 3, padT + 10);
+
+  kCtx.restore();
+
+  // Tick labels
+  kCtx.fillStyle = '#555568'; kCtx.font = '10px Courier New';
+
+  // Phase axis labels (bottom)
+  kCtx.textAlign = 'center';
+  for (let v = Math.ceil(degMin / degStep) * degStep; v <= degMax + 1e-9; v += degStep) {
+    const x = toX(v);
+    if (x < padL || x > padL + pw) continue;
+    kCtx.fillText(niceLabel(v) + '°', x, padT + ph + 14);
+  }
+
+  // dB axis labels (left)
+  kCtx.textAlign = 'right';
+  for (let db = dBmin; db <= dBmax; db += 10) {
+    kCtx.fillText(db + '', padL - 4, toY(db) + 3.5);
+  }
+
+  // Axis labels
+  kCtx.textAlign = 'center';
+  kCtx.fillText('∠H (°)', padL + pw / 2, H - 2);
+  kCtx.save(); kCtx.translate(11, padT + ph / 2); kCtx.rotate(-Math.PI / 2);
+  kCtx.fillText('|H| dB', 0, 0); kCtx.restore();
+
+  // Border
+  kCtx.strokeStyle = '#252535'; kCtx.lineWidth = 1;
+  kCtx.strokeRect(padL, padT, pw, ph);
+}
+
+function redraw() { drawBode(); drawWaveform(); drawNyquist(); drawNichols(); }
 
 // ── AUDIO SYNTHESIS ──────────────────────────────────────────────────────────
 // Noise-based sounds use real filtered white noise (much better than sinusoid banks).
