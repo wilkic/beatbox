@@ -36,6 +36,20 @@ header p  { color: var(--dim); font-size: 10px; }
 #playBtn { background: none; border: 1px solid var(--accent); color: var(--accent); padding: 6px 18px; cursor: pointer; font-family: inherit; font-size: 11px; letter-spacing: 2px; min-height: 32px; }
 #playBtn:active { background: rgba(78,158,245,0.15); }
 #playBtn.playing { border-color: var(--green); color: var(--green); }
+.ctrl-sep { width: 1px; background: var(--border); align-self: stretch; margin: 0 4px; }
+#loadAudioBtn, #recordBtn, #flushBtn { background: none; border: 1px solid var(--border); color: var(--dim); padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 10px; letter-spacing: 1px; min-height: 32px; }
+#loadAudioBtn:hover { border-color: var(--accent); color: var(--accent); }
+#recordBtn:hover:not(.recording) { border-color: var(--red); color: var(--red); }
+#recordBtn.recording { border-color: var(--red); color: var(--red); animation: pulse 1s infinite; }
+#flushBtn:hover { border-color: var(--red); color: var(--red); }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+#cropBar { display: none; align-items: center; gap: 8px 14px; padding: 7px 16px; border-bottom: 1px solid var(--border); font-size: 10px; color: var(--dim); flex-wrap: wrap; }
+#cropBar.visible { display: flex; }
+.cb-label { color: var(--amber); letter-spacing: 2px; font-size: 9px; }
+.cb-time  { color: var(--text); font-variant-numeric: tabular-nums; }
+.cb-arrow { color: var(--dim); }
+#cropBar button { background: none; border: 1px solid var(--border); color: var(--dim); padding: 4px 10px; cursor: pointer; font-family: inherit; font-size: 10px; letter-spacing: 1px; min-height: 26px; }
+#cropBar button:hover { border-color: var(--amber); color: var(--amber); }
 
 .cat-bar { display: flex; gap: 4px; padding: 8px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .cat-btn { background: none; border: 1px solid var(--border); color: var(--dim); padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; min-height: 32px; }
@@ -46,6 +60,9 @@ header p  { color: var(--dim); font-size: 10px; }
 .snd-btn { background: var(--bg2); border: 1px solid var(--border); color: var(--text); padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 10px; letter-spacing: 0.5px; min-height: 32px; }
 .snd-btn:hover { border-color: #444; }
 .snd-btn.sel { border-color: var(--accent); color: var(--accent); background: rgba(78,158,245,0.07); }
+.snd-del { margin-left: 5px; font-size: 13px; opacity: 0.3; vertical-align: middle; }
+.snd-btn:hover .snd-del { opacity: 0.6; }
+.snd-del:hover { color: var(--red) !important; opacity: 1 !important; }
 
 .legend { display: flex; gap: 16px; align-items: center; padding: 5px 16px; font-size: 10px; color: var(--dim); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .litem { display: flex; align-items: center; gap: 5px; }
@@ -89,6 +106,11 @@ canvas { display: block; max-width: 100%; }
   <label><input type="checkbox" id="cmpCheck">&nbsp;Compare mode — click multiple sounds to overlay Bode plots</label>
   <button id="clearCompare">Clear overlay</button>
   <button id="playBtn">▶ PLAY</button>
+  <span class="ctrl-sep"></span>
+  <button id="loadAudioBtn">📁 ANALYZE FILE</button>
+  <input type="file" id="audioFile" accept="audio/*" style="display:none">
+  <button id="recordBtn">⏺ REC</button>
+  <button id="flushBtn">🗑 FLUSH RECS</button>
   <span class="hint">Based on TR-808 / TR-909 archetypes</span>
 </div>
 
@@ -98,12 +120,12 @@ canvas { display: block; max-width: 100%; }
 
 <div class="plots">
   <div class="panel">
-    <div class="panel-title">Bode Plot — Frequency Response (Magnitude &amp; Phase)</div>
-    <canvas id="bodeCanvas"></canvas>
+    <div class="panel-title">Waveform — Time Domain</div>
+    <canvas id="waveCanvas"></canvas>
   </div>
   <div class="panel">
-    <div class="panel-title">Waveform — Time Domain Envelope</div>
-    <canvas id="waveCanvas"></canvas>
+    <div class="panel-title">Bode Plot — Frequency Response (Magnitude &amp; Phase)</div>
+    <canvas id="bodeCanvas"></canvas>
   </div>
   <div class="panel nyq-hide">
     <div class="panel-title">Nyquist Plot — H(jω) in the Complex Plane</div>
@@ -113,6 +135,16 @@ canvas { display: block; max-width: 100%; }
     <div class="panel-title">Nichols Chart — Gain vs Phase</div>
     <canvas id="nicCanvas"></canvas>
   </div>
+</div>
+
+<div id="cropBar">
+  <span class="cb-label">CROP</span>
+  <span class="cb-time" id="cropStartLbl">0.000 s</span>
+  <span class="cb-arrow">→</span>
+  <span class="cb-time" id="cropEndLbl">0.000 s</span>
+  <button id="cropApplyBtn">✂ APPLY</button>
+  <button id="cropResetBtn">↺ RESET</button>
+  <button id="cropSaveBtn">💾 SAVE WAV</button>
 </div>
 
 <div class="info">
@@ -452,7 +484,7 @@ const SOUNDS = [
 ];
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-const CATS = ['All','Kick','Snare','Hi-Hat','Cymbal','Perc','Bass','FX'];
+const CATS = ['All','Kick','Snare','Hi-Hat','Cymbal','Perc','Bass','FX','Analyzed'];
 const COLORS = ['#4e9ef5','#f0a020','#3ecf7a','#f06060','#b07aff','#ff8844','#30d0c0','#ff80aa'];
 
 let selId  = 'kick_808';
@@ -503,8 +535,22 @@ function buildSoundBtns() {
     if (s.id===selId) b.classList.add('sel');
     const ci = cmpIds.indexOf(s.id);
     if (ci>=0) { b.style.borderColor=COLORS[(ci+1)%COLORS.length]; b.style.color=COLORS[(ci+1)%COLORS.length]; }
-    b.textContent = s.name;
     b.onclick = () => selectSound(s.id);
+
+    if (s.cat === 'Analyzed') {
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = s.name;
+      const del = document.createElement('span');
+      del.className = 'snd-del';
+      del.textContent = '×';
+      del.title = s._idbId != null ? 'Delete recording' : 'Remove';
+      del.onclick = e => { e.stopPropagation(); deleteAnalyzed(s.id); };
+      b.appendChild(nameSpan);
+      b.appendChild(del);
+    } else {
+      b.textContent = s.name;
+    }
+
     soundsBar.appendChild(b);
   });
 }
@@ -528,7 +574,7 @@ function selectSound(id) {
     else if (id!==selId) cmpIds.push(id);
   }
   selId=id;
-  buildSoundBtns(); buildLegend(); updateInfo(); redraw();
+  buildSoundBtns(); buildLegend(); updateInfo(); updateCropBar(); redraw();
 }
 
 function updateInfo() {
@@ -771,6 +817,140 @@ function drawWaveform() {
   // Border
   wCtx.strokeStyle='#1a2a1a'; wCtx.lineWidth=1;
   wCtx.strokeRect(padL,padT,pw,ph);
+
+  // Crop overlay — only for Analyzed sounds
+  if (s.cat === 'Analyzed') {
+    const cs = s._cropStart ?? 0;
+    const ce = s._cropEnd   ?? s.dur;
+    const toX = t => padL + pw * t / s.dur;
+    const xs = toX(cs), xe = toX(ce);
+
+    // Dim regions outside crop
+    wCtx.fillStyle = 'rgba(0,0,0,0.55)';
+    if (xs > padL)      wCtx.fillRect(padL, padT, xs - padL,      ph);
+    if (xe < padL + pw) wCtx.fillRect(xe,   padT, padL + pw - xe, ph);
+
+    // Crop boundary lines
+    wCtx.strokeStyle = '#f0a020'; wCtx.lineWidth = 1.5;
+    wCtx.setLineDash([4, 3]);
+    wCtx.beginPath(); wCtx.moveTo(xs, padT); wCtx.lineTo(xs, padT+ph); wCtx.stroke();
+    wCtx.beginPath(); wCtx.moveTo(xe, padT); wCtx.lineTo(xe, padT+ph); wCtx.stroke();
+    wCtx.setLineDash([]);
+
+    // Drag handles
+    wCtx.fillStyle = '#f0a020';
+    wCtx.fillRect(xs-5, padT,   10, 14);
+    wCtx.fillRect(xe-5, padT,   10, 14);
+    wCtx.fillRect(xs-5, padT+ph-14, 10, 14);
+    wCtx.fillRect(xe-5, padT+ph-14, 10, 14);
+  }
+
+  // Store layout for crop mouse handler
+  waveLayout = { padL, padR, padT, padB, pw, ph, W, H };
+}
+
+// ── CROP INTERACTION ──────────────────────────────────────────────────────────
+
+let waveLayout = { padL:38, padR:12, padT:10, padB:34, pw:0, ph:0, W:0, H:340 };
+let cropDragMode = null; // 'start' | 'end'
+
+function updateCropBar() {
+  const s = SOUNDS.find(s => s.id === selId);
+  const bar = document.getElementById('cropBar');
+  if (!s || s.cat !== 'Analyzed') { bar.classList.remove('visible'); return; }
+  bar.classList.add('visible');
+  const fmt = t => t.toFixed(3) + ' s';
+  document.getElementById('cropStartLbl').textContent = fmt(s._cropStart ?? 0);
+  document.getElementById('cropEndLbl').textContent   = fmt(s._cropEnd   ?? s.dur);
+}
+
+waveCanvas.addEventListener('mousedown', e => {
+  const s = SOUNDS.find(s => s.id === selId);
+  if (!s || s.cat !== 'Analyzed') return;
+  const rect = waveCanvas.getBoundingClientRect();
+  const cx   = e.clientX - rect.left;
+  const { padL, pw } = waveLayout;
+  const toX  = t => padL + pw * t / s.dur;
+  if (Math.abs(cx - toX(s._cropStart)) < 10) cropDragMode = 'start';
+  else if (Math.abs(cx - toX(s._cropEnd)) < 10) cropDragMode = 'end';
+});
+
+waveCanvas.addEventListener('mousemove', e => {
+  const s = SOUNDS.find(s => s.id === selId);
+  if (!s || s.cat !== 'Analyzed') return;
+  const rect = waveCanvas.getBoundingClientRect();
+  const cx   = e.clientX - rect.left;
+  const { padL, pw } = waveLayout;
+  const toX  = t => padL + pw * t / s.dur;
+  const toT  = x => Math.max(0, Math.min(s.dur, (x - padL) / pw * s.dur));
+
+  // Cursor hint
+  const nearStart = Math.abs(cx - toX(s._cropStart)) < 10;
+  const nearEnd   = Math.abs(cx - toX(s._cropEnd))   < 10;
+  waveCanvas.style.cursor = (nearStart || nearEnd) ? 'ew-resize' : '';
+
+  if (cropDragMode) {
+    const t = toT(cx);
+    if (cropDragMode === 'start') s._cropStart = Math.min(t, s._cropEnd - 0.001);
+    else                          s._cropEnd   = Math.max(t, s._cropStart + 0.001);
+    drawWaveform();
+    updateCropBar();
+  }
+});
+
+document.addEventListener('mouseup', () => { cropDragMode = null; });
+
+document.getElementById('cropApplyBtn').onclick = () => {
+  const s = SOUNDS.find(s => s.id === selId);
+  if (!s || s.cat !== 'Analyzed') return;
+  const s0 = (s._cropStart * s._sampleRate) | 0;
+  const s1 = (s._cropEnd   * s._sampleRate) | 0;
+  const { bodeAt, phaseAt } = computeSpectrum(s._rawData.subarray(s0, s1), s._sampleRate);
+  s.bode  = bodeAt;
+  s.phase = phaseAt;
+  redraw();
+};
+
+document.getElementById('cropResetBtn').onclick = () => {
+  const s = SOUNDS.find(s => s.id === selId);
+  if (!s || s.cat !== 'Analyzed') return;
+  s._cropStart = 0;
+  s._cropEnd   = s.dur;
+  const { bodeAt, phaseAt } = computeSpectrum(s._rawData, s._sampleRate);
+  s.bode  = bodeAt;
+  s.phase = phaseAt;
+  updateCropBar();
+  redraw();
+};
+
+document.getElementById('cropSaveBtn').onclick = () => {
+  const s = SOUNDS.find(s => s.id === selId);
+  if (!s || s.cat !== 'Analyzed') return;
+  const wav = encodeWAV(s._rawData, s._sampleRate);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([wav], { type: 'audio/wav' }));
+  a.download = s.name.replace(/[^a-z0-9_-]/gi, '_') + '.wav';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+};
+
+// ── WAV ENCODER ───────────────────────────────────────────────────────────────
+
+function encodeWAV(samples, sr) {
+  const buf  = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buf);
+  const str  = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off+i, s.charCodeAt(i)); };
+  str(0, 'RIFF'); view.setUint32(4, 36 + samples.length*2, true);
+  str(8, 'WAVE'); str(12, 'fmt '); view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, sr, true); view.setUint32(28, sr*2, true);
+  view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  str(36, 'data'); view.setUint32(40, samples.length*2, true);
+  for (let i = 0; i < samples.length; i++) {
+    const v = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(44 + i*2, v < 0 ? v*0x8000 : v*0x7FFF, true);
+  }
+  return buf;
 }
 
 // ── NYQUIST ───────────────────────────────────────────────────────────────────
@@ -1197,11 +1377,285 @@ function playCurrentSound() {
 
 document.getElementById('playBtn').onclick = playCurrentSound;
 
+// ── FFT ───────────────────────────────────────────────────────────────────────
+
+function fft(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) {
+      let t = re[i]; re[i] = re[j]; re[j] = t;
+          t = im[i]; im[i] = im[j]; im[j] = t;
+    }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len;
+    const wRe = Math.cos(ang), wIm = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let curRe = 1, curIm = 0;
+      for (let j = 0; j < (len >> 1); j++) {
+        const h = len >> 1;
+        const uRe = re[i+j],     uIm = im[i+j];
+        const vRe = re[i+j+h]*curRe - im[i+j+h]*curIm;
+        const vIm = re[i+j+h]*curIm + im[i+j+h]*curRe;
+        re[i+j]   = uRe+vRe;  im[i+j]   = uIm+vIm;
+        re[i+j+h] = uRe-vRe;  im[i+j+h] = uIm-vIm;
+        const nr = curRe*wRe - curIm*wIm;
+        curIm    = curRe*wIm + curIm*wRe;
+        curRe    = nr;
+      }
+    }
+  }
+}
+
+// ── AUDIO ANALYSIS ────────────────────────────────────────────────────────────
+
+let analyzedCount = 0;
+
+// Welch's method on a raw Float32Array slice → { bodeAt, phaseAt, winCount }
+function computeSpectrum(raw, sr) {
+  const n = 8192, hop = n >> 1, bins = n >> 1;
+  const hann = new Float32Array(n);
+  for (let i = 0; i < n; i++) hann[i] = 0.5 * (1 - Math.cos(2*Math.PI*i/(n-1)));
+
+  const re = new Float32Array(n), im = new Float32Array(n);
+  const pow = new Float32Array(bins);
+  let bestPhase = null, bestPeak = 0, winCount = 0;
+
+  const processWin = start => {
+    for (let i = 0; i < n; i++) {
+      re[i] = (start+i < raw.length ? raw[start+i] : 0) * hann[i];
+      im[i] = 0;
+    }
+    fft(re, im);
+    let wp = 0;
+    for (let k = 0; k < bins; k++) {
+      const p = re[k]*re[k] + im[k]*im[k];
+      pow[k] += p;
+      if (p > wp) wp = p;
+    }
+    if (wp > bestPeak) {
+      bestPeak = wp;
+      bestPhase = new Float32Array(bins);
+      for (let k = 0; k < bins; k++) bestPhase[k] = Math.atan2(im[k], re[k]);
+    }
+    winCount++;
+  };
+
+  if (raw.length >= n) {
+    for (let s = 0; s + n <= raw.length; s += hop) processWin(s);
+  } else {
+    processWin(0);
+  }
+
+  const mag = new Float32Array(bins);
+  for (let k = 0; k < bins; k++) mag[k] = Math.sqrt(pow[k] / winCount);
+  let peak = 1e-10;
+  for (let k = 0; k < bins; k++) if (mag[k] > peak) peak = mag[k];
+
+  const freqToK = f => Math.max(0, Math.min(bins-2, f * n / sr));
+
+  const bodeAt = f => {
+    const flo = f / Math.pow(2, 1/6), fhi = f * Math.pow(2, 1/6);
+    const klo = freqToK(flo)|0, khi = Math.ceil(freqToK(fhi));
+    let sum = 0, cnt = 0;
+    for (let k = klo; k <= khi && k < bins; k++) { sum += mag[k]; cnt++; }
+    return 20 * Math.log10(Math.max(cnt > 0 ? sum/cnt : mag[freqToK(f)|0], 1e-6) / peak);
+  };
+
+  const phaseAt = f => {
+    if (!bestPhase) return 0;
+    const k = freqToK(f), k0 = k|0;
+    return bestPhase[k0] + (k-k0) * (bestPhase[Math.min(k0+1,bins-1)] - bestPhase[k0]);
+  };
+
+  return { bodeAt, phaseAt, winCount };
+}
+
+function analyzeAudioBuffer(audioBuffer, name, idbId) {
+  const sr  = audioBuffer.sampleRate;
+  const dur = audioBuffer.duration;
+
+  // Mix to mono
+  const rawFull = new Float32Array(audioBuffer.getChannelData(0).length);
+  for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+    const chData = audioBuffer.getChannelData(ch);
+    for (let i = 0; i < rawFull.length; i++) rawFull[i] += chData[i];
+  }
+  if (audioBuffer.numberOfChannels > 1) {
+    for (let i = 0; i < rawFull.length; i++) rawFull[i] /= audioBuffer.numberOfChannels;
+  }
+
+  const { bodeAt, phaseAt, winCount } = computeSpectrum(rawFull, sr);
+  const waveAt = (t, raw) => {
+    if (t < 0 || t > dur) return 0;
+    const i = t * sr | 0;
+    return i < raw.length ? raw[i] : 0;
+  };
+
+  const id = 'analyzed_' + (++analyzedCount);
+  const method = winCount > 1 ? `Welch · ${winCount} windows` : 'single window';
+
+  const sound = {
+    id, name, cat: 'Analyzed',
+    desc:  `FFT analysis of "${name}". Duration: ${dur.toFixed(2)} s · Sample rate: ${sr} Hz · ${method}.`,
+    model: `FFT (${method})\nWindow: Hann · 8192 pts · 1/3-oct smoothed\nResolution: ${(sr/8192).toFixed(1)} Hz/bin\nSample rate: ${sr} Hz · Duration: ${dur.toFixed(3)} s`,
+    dur,
+    bode:  bodeAt,
+    phase: phaseAt,
+    wave:  t => waveAt(t, rawFull),
+    _rawData: rawFull, _sampleRate: sr,
+    _cropStart: 0, _cropEnd: dur,
+    _idbId: idbId ?? null,
+  };
+
+  SOUNDS.push(sound);
+  activeCat = 'Analyzed';
+  document.querySelectorAll('.cat-btn').forEach(b =>
+    b.classList.toggle('active', b.textContent === 'Analyzed'));
+  buildSoundBtns();
+  selectSound(id);
+}
+
+// ── INDEXEDDB — persist recordings across sessions ────────────────────────────
+
+const IDB = (() => {
+  let db = null;
+  const open = () => new Promise((res, rej) => {
+    if (db) return res(db);
+    const req = indexedDB.open('beatbox-recordings', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('recs', { keyPath: 'id', autoIncrement: true });
+    req.onsuccess  = e => { db = e.target.result; res(db); };
+    req.onerror    = e => rej(e.target.error);
+  });
+  return {
+    save:    async (name, ab) => { const d = await open(); return new Promise((res,rej) => { const tx=d.transaction('recs','readwrite'); const r=tx.objectStore('recs').add({name,data:ab,ts:Date.now()}); r.onsuccess=e=>res(e.target.result); tx.onerror=rej; }); },
+    loadAll: async ()         => { const d = await open(); return new Promise((res,rej) => { const r=d.transaction('recs').objectStore('recs').getAll(); r.onsuccess=e=>res(e.target.result); r.onerror=rej; }); },
+    delete:  async id         => { const d = await open(); return new Promise((res,rej) => { const tx=d.transaction('recs','readwrite'); tx.objectStore('recs').delete(id); tx.oncomplete=res; tx.onerror=rej; }); },
+  };
+})();
+
+// ── FILE LOAD ─────────────────────────────────────────────────────────────────
+
+document.getElementById('loadAudioBtn').onclick = () =>
+  document.getElementById('audioFile').click();
+
+document.getElementById('audioFile').onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = '';
+  file.arrayBuffer().then(ab => {
+    const ctx = getCtx();
+    ctx.decodeAudioData(ab)
+      .then(buf => analyzeAudioBuffer(buf, file.name.replace(/\.[^.]+$/, '')))
+      .catch(err => alert('Could not decode audio: ' + err.message));
+  });
+};
+
+// ── RECORD ────────────────────────────────────────────────────────────────────
+
+let mediaRecorder = null, recChunks = [];
+
+document.getElementById('recordBtn').onclick = async () => {
+  const btn = document.getElementById('recordBtn');
+
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    recChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recChunks.push(e.data); };
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      btn.classList.remove('recording');
+      btn.textContent = '⏺ REC';
+      const label = 'Rec ' + new Date().toLocaleTimeString();
+      const blob  = new Blob(recChunks, { type: recChunks[0]?.type || 'audio/webm' });
+      const ab    = await blob.arrayBuffer();
+      // Persist to IDB so it survives page refresh
+      const idbId = await IDB.save(label, ab.slice()).catch(() => null);
+      const ctx   = getCtx();
+      ctx.decodeAudioData(ab)
+        .then(buf => analyzeAudioBuffer(buf, label, idbId))
+        .catch(err => alert('Could not decode recording: ' + err.message));
+    };
+    mediaRecorder.start();
+    btn.classList.add('recording');
+    btn.textContent = '⏹ STOP';
+  } catch (err) {
+    alert('Microphone access denied: ' + err.message);
+  }
+};
+
+// ── ANALYZED SOUND MANAGEMENT ────────────────────────────────────────────────
+
+function deleteAnalyzed(id) {
+  const s = SOUNDS.find(s => s.id === id);
+  if (!s) return;
+  if (s._idbId != null) IDB.delete(s._idbId).catch(() => {});
+  SOUNDS.splice(SOUNDS.indexOf(s), 1);
+  cmpIds = cmpIds.filter(c => c !== id);
+
+  if (selId === id) {
+    const remaining = SOUNDS.filter(s => s.cat === 'Analyzed');
+    if (remaining.length) {
+      selectSound(remaining[remaining.length - 1].id);
+    } else {
+      activeCat = 'All';
+      document.querySelectorAll('.cat-btn').forEach(b =>
+        b.classList.toggle('active', b.textContent === 'All'));
+      selId = SOUNDS[0]?.id;
+      buildSoundBtns(); buildLegend(); updateInfo(); updateCropBar(); redraw();
+    }
+  } else {
+    buildSoundBtns(); buildLegend();
+  }
+}
+
+document.getElementById('flushBtn').onclick = async () => {
+  const hasAnalyzed = SOUNDS.some(s => s.cat === 'Analyzed');
+  if (!hasAnalyzed) return;
+  if (!confirm('Delete all recordings and analyzed clips?')) return;
+
+  const recs = await IDB.loadAll().catch(() => []);
+  await Promise.all(recs.map(r => IDB.delete(r.id).catch(() => {})));
+
+  for (let i = SOUNDS.length - 1; i >= 0; i--) {
+    if (SOUNDS[i].cat === 'Analyzed') SOUNDS.splice(i, 1);
+  }
+  cmpIds = cmpIds.filter(id => SOUNDS.some(s => s.id === id));
+
+  if (!SOUNDS.find(s => s.id === selId)) {
+    activeCat = 'All';
+    document.querySelectorAll('.cat-btn').forEach(b =>
+      b.classList.toggle('active', b.textContent === 'All'));
+    selId = SOUNDS[0]?.id;
+  }
+  buildSoundBtns(); buildLegend(); updateInfo(); updateCropBar(); redraw();
+};
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 buildSoundBtns();
 updateInfo();
 setTimeout(redraw, 60);
 window.addEventListener('resize', () => setTimeout(redraw,30));
+
+// Restore saved recordings from IndexedDB
+IDB.loadAll().then(recs => {
+  if (!recs.length) return;
+  const ctx = getCtx();
+  recs.forEach(r => {
+    ctx.decodeAudioData(r.data.slice())
+      .then(buf => analyzeAudioBuffer(buf, r.name, r.id))
+      .catch(() => IDB.delete(r.id)); // drop undecodable entries
+  });
+}).catch(() => {});
 </script>
 </body>
 </html>
