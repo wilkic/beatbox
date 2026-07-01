@@ -62,6 +62,46 @@ header p  { color: var(--dim); font-size: 10px; }
 #filterStatus.active { color: var(--green); }
 #filterStatus.busy   { color: var(--amber); }
 
+#synthToggleBtn { background: none; border: 1px solid var(--border); color: var(--dim); padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 10px; letter-spacing: 1px; min-height: 32px; }
+#synthToggleBtn:hover { border-color: var(--purple); color: var(--purple); }
+#synthToggleBtn.open  { border-color: var(--purple); color: var(--purple); }
+
+#synthPanel { background: var(--bg); border-bottom: 1px solid var(--border); }
+#synthTabs  { display: flex; gap: 1px; background: var(--border); }
+.stab { background: var(--bg2); border: none; color: var(--dim); padding: 6px 16px; cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; }
+.stab:hover { color: var(--text); }
+.stab.active { background: var(--bg); color: var(--purple); border-bottom: 2px solid var(--purple); }
+.stab-content { padding: 10px 16px 12px; }
+.synth-table { border-collapse: collapse; margin-bottom: 8px; }
+.synth-table th { font-size: 9px; letter-spacing: 1px; color: var(--dim); text-align: left; padding: 0 10px 4px 0; }
+.synth-table td { padding: 2px 10px 2px 0; }
+.synth-table input[type=number] { background: var(--bg2); border: 1px solid var(--border); color: var(--text); font-family: 'Courier New', monospace; font-size: 10px; padding: 3px 5px; width: 82px; }
+.synth-table input[type=number]:focus { border-color: var(--purple); outline: none; }
+.del-row { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 13px; padding: 0 4px; }
+.del-row:hover { color: var(--red); }
+.synth-row { display: flex; align-items: center; gap: 6px 12px; margin: 6px 0; flex-wrap: wrap; font-size: 10px; color: var(--dim); }
+.synth-row button { background: none; border: 1px solid var(--border); color: var(--dim); padding: 4px 10px; cursor: pointer; font-family: inherit; font-size: 10px; letter-spacing: 1px; min-height: 26px; }
+.synth-row button:hover { border-color: var(--purple); color: var(--purple); }
+.synth-row button:disabled { opacity: 0.4; cursor: default; }
+.synth-row input[type=number] { background: var(--bg2); border: 1px solid var(--border); color: var(--text); font-family: 'Courier New', monospace; font-size: 10px; padding: 3px 5px; width: 68px; }
+.synth-row input[type=number]:focus { border-color: var(--purple); outline: none; }
+.synth-row select { background: var(--bg2); border: 1px solid var(--border); color: var(--text); font-family: 'Courier New', monospace; font-size: 10px; padding: 3px 5px; cursor: pointer; }
+.synth-row input[type=text] { background: var(--bg2); border: 1px solid var(--border); color: var(--text); font-family: 'Courier New', monospace; font-size: 10px; padding: 3px 8px; }
+.synth-row input[type=text]:focus, .synth-row select:focus { border-color: var(--purple); outline: none; }
+.synth-sep { margin-left: 12px; }
+.synth-hint { font-size: 9px; color: var(--dim); letter-spacing: 0.4px; margin: 3px 0; }
+.synth-hint code { color: var(--text); background: var(--bg3); padding: 1px 4px; }
+.synth-expr-in { background: var(--bg2); border: 1px solid var(--border); color: var(--green); font-family: 'Courier New', monospace; font-size: 11px; padding: 6px 8px; width: 100%; max-width: 720px; }
+.synth-expr-in:focus { border-color: var(--purple); outline: none; }
+#synthAIPrompt { width: 100%; max-width: 720px; background: var(--bg2); border: 1px solid var(--border); color: var(--text); font-family: 'Courier New', monospace; font-size: 11px; padding: 8px; resize: vertical; height: 56px; display: block; margin: 6px 0; }
+#synthAIPrompt:focus { border-color: var(--purple); outline: none; }
+input[type=password]#synthApiKey { background: var(--bg2); border: 1px solid var(--border); color: var(--dim); font-family: 'Courier New', monospace; font-size: 10px; padding: 3px 8px; width: 240px; }
+input[type=password]#synthApiKey:focus { border-color: var(--purple); color: var(--text); outline: none; }
+#synthAIStatus { font-size: 9px; margin-top: 6px; min-height: 14px; letter-spacing: 0.4px; }
+#synthAIStatus.busy { color: var(--amber); }
+#synthAIStatus.ok   { color: var(--green); }
+#synthAIStatus.err  { color: var(--red); }
+
 .cat-bar { display: flex; gap: 4px; padding: 8px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .cat-btn { background: none; border: 1px solid var(--border); color: var(--dim); padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; min-height: 32px; }
 .cat-btn.active { border-color: var(--accent); color: var(--accent); }
@@ -123,6 +163,8 @@ canvas { display: block; max-width: 100%; }
   <input type="file" id="audioFile" accept="audio/*" style="display:none">
   <button id="recordBtn">⏺ REC</button>
   <button id="flushBtn">🗑 FLUSH RECS</button>
+  <span class="ctrl-sep"></span>
+  <button id="synthToggleBtn">⚗ SYNTH</button>
   <span class="hint">Based on TR-808 / TR-909 archetypes</span>
 </div>
 
@@ -175,6 +217,65 @@ canvas { display: block; max-width: 100%; }
   <button id="filterApplyBtn">▶ APPLY</button>
   <button id="filterRemoveBtn">✕ REMOVE</button>
   <span id="filterStatus"></span>
+</div>
+
+<div id="synthPanel" style="display:none">
+  <div id="synthTabs">
+    <button class="stab active" data-tab="additive">ADDITIVE</button>
+    <button class="stab" data-tab="expr">EXPRESSION</button>
+    <button class="stab" data-tab="ai">✦ CLAUDE</button>
+  </div>
+
+  <div id="stab-additive" class="stab-content">
+    <table class="synth-table">
+      <thead><tr><th>f (Hz)</th><th>amplitude</th><th>phase °</th><th></th></tr></thead>
+      <tbody id="partialBody"></tbody>
+    </table>
+    <div class="synth-row">
+      <button id="addPartialBtn">+ PARTIAL</button>
+    </div>
+    <div class="synth-row">
+      <label>ATK <input type="number" id="synthA"   value="0.005" min="0" max="10"  step="0.001"> s</label>
+      <label>DEC <input type="number" id="synthD"   value="0.15"  min="0" max="10"  step="0.001"> s</label>
+      <label>SUS <input type="number" id="synthS"   value="0.0"   min="0" max="1"   step="0.01"></label>
+      <label>REL <input type="number" id="synthR"   value="0.05"  min="0" max="10"  step="0.001"> s</label>
+      <label>DUR <input type="number" id="synthDur" value="0.5"   min="0.05" max="30" step="0.05"> s</label>
+      <label class="synth-sep">NOISE <input type="number" id="synthNoise" value="0" min="0" max="1" step="0.01"></label>
+      <select id="synthNoiseColor"><option value="white">white</option><option value="pink">pink</option></select>
+    </div>
+    <div class="synth-row">
+      <button id="synthGenerateBtn">▶ GENERATE</button>
+      <input type="text" id="synthName" placeholder="clip name (optional)" style="width:220px">
+    </div>
+  </div>
+
+  <div id="stab-expr" class="stab-content" style="display:none">
+    <div class="synth-hint">ffmpeg lavfi or bare expression — <code>t</code> = time in seconds</div>
+    <div class="synth-hint">available: <code>PI  sin  cos  exp  abs  sqrt  pow  log  min  max</code></div>
+    <div class="synth-hint" style="margin-top:5px">e.g. <code>sin(2*PI*440*t) + 0.5*sin(2*PI*880*t)</code>&ensp;·&ensp;<code>aevalsrc=sin(2*PI*440*t)*exp(-t*5):duration=2</code>&ensp;·&ensp;<code>sine=frequency=440:duration=0.5</code></div>
+    <div class="synth-row" style="margin-top:8px">
+      <input type="text" id="synthExprInput" class="synth-expr-in" value="sin(2*PI*440*t) + 0.5*sin(2*PI*880*t)">
+    </div>
+    <div class="synth-row">
+      <label>DUR <input type="number" id="synthExprDur" value="1.0"   min="0.05" max="30"    step="0.05"> s</label>
+      <label>SR  <input type="number" id="synthExprSR"  value="44100" min="8000" max="96000" step="100"> Hz</label>
+      <button id="synthExprBtn">▶ GENERATE</button>
+      <input type="text" id="synthExprName" placeholder="clip name (optional)" style="width:220px">
+    </div>
+  </div>
+
+  <div id="stab-ai" class="stab-content" style="display:none">
+    <div class="synth-row">
+      <label>API KEY <input type="password" id="synthApiKey" autocomplete="off" placeholder="sk-ant-…"></label>
+      <span class="synth-hint">Session only — not saved to disk.</span>
+    </div>
+    <textarea id="synthAIPrompt" placeholder='Describe the sound… e.g. "a tight 808 cowbell", "a 50 Hz bass tone with slow attack", "a snare with crisp body and noise transient"'></textarea>
+    <div class="synth-row">
+      <button id="synthAIBtn">✦ ASK CLAUDE</button>
+      <span class="synth-hint">→ populates Additive tab and generates clip · model: claude-haiku-4-5</span>
+    </div>
+    <div id="synthAIStatus"></div>
+  </div>
 </div>
 
 <div class="info">
@@ -1834,6 +1935,286 @@ document.getElementById('flushBtn').onclick = async () => {
     selId = SOUNDS[0]?.id;
   }
   buildSoundBtns(); buildLegend(); updateInfo(); updateCropBar(); redraw();
+};
+
+// ── SIGNAL GENERATOR ─────────────────────────────────────────────────────────
+
+function synthesizeAdditive(partials, adsr, noise, dur, sr) {
+  const n = Math.ceil(sr * dur);
+  const out = new Float32Array(n);
+  const { attack:A=0.005, decay:D=0.15, sustain:S=0.0, release:R=0.05 } = adsr;
+  const relStart = Math.max(0, dur - R);
+
+  const env = t => {
+    if (t < A)        return A > 0 ? t/A : 1;
+    if (t < A+D)      return D > 0 ? 1-(1-S)*(t-A)/D : S;
+    if (t < relStart) return S;
+    if (t < dur)      return R > 0 ? S*(1-(t-relStart)/R) : 0;
+    return 0;
+  };
+
+  // Paul Kellett pink noise state
+  let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+
+  for (let i = 0; i < n; i++) {
+    const t = i / sr;
+    let v = 0;
+    for (const p of partials) {
+      v += (p.A ?? 1) * Math.sin(2*Math.PI*(p.f ?? 440)*t + (p.phi ?? 0)*Math.PI/180);
+    }
+    if ((noise.level ?? 0) > 0) {
+      const w = Math.random()*2-1;
+      let nv;
+      if (noise.color === 'pink') {
+        b0=0.99886*b0+w*0.0555179; b1=0.99332*b1+w*0.0750759;
+        b2=0.96900*b2+w*0.1538520; b3=0.86650*b3+w*0.3104856;
+        b4=0.55000*b4+w*0.5329522; b5=-0.7616*b5-w*0.0168980;
+        nv=(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11; b6=w*0.115926;
+      } else {
+        nv = w;
+      }
+      v += nv * noise.level;
+    }
+    out[i] = v * env(t);
+  }
+
+  let peak = 0;
+  for (let i = 0; i < n; i++) if (Math.abs(out[i]) > peak) peak = Math.abs(out[i]);
+  if (peak > 0.001) for (let i = 0; i < n; i++) out[i] *= 0.9/peak;
+  return out;
+}
+
+function evalSynthExpr(exprRaw, sr, dur) {
+  let expr = exprRaw.trim();
+  const aev = expr.match(/^aevalsrc=([^:]+)/i);
+  if (aev) expr = aev[1];
+
+  let fn;
+  try {
+    fn = new Function('t','PI','sin','cos','exp','abs','sqrt','pow','log','min','max',
+      `"use strict"; return (${expr});`);
+  } catch(e) { throw new Error(`Parse error: ${e.message}`); }
+
+  const n = Math.ceil(sr * dur);
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    try {
+      const v = fn(i/sr, Math.PI, Math.sin, Math.cos, Math.exp, Math.abs, Math.sqrt,
+                   Math.pow, Math.log, Math.min, Math.max);
+      out[i] = isFinite(v) ? v : 0;
+    } catch(_) {}
+  }
+
+  let peak = 0;
+  for (let i = 0; i < n; i++) if (Math.abs(out[i]) > peak) peak = Math.abs(out[i]);
+  if (peak > 0.001) for (let i = 0; i < n; i++) out[i] *= 0.9/peak;
+  return out;
+}
+
+function parseSineSpec(after) {
+  const p = {};
+  after.split(':').forEach(kv => { const [k,v]=kv.split('='); if(k) p[k.trim()]=parseFloat(v)||0; });
+  return {
+    partials: [{ f: p.frequency||440, A: p.amplitude||1, phi: 0 }],
+    adsr: { attack:0.001, decay:0, sustain:1, release:0.001 },
+    noise: { level:0, color:'white' },
+    duration: p.duration||1,
+  };
+}
+
+function generateSynthClip(samples, sr, name) {
+  const ctx = getCtx();
+  const buf = ctx.createBuffer(1, samples.length, sr);
+  buf.getChannelData(0).set(samples);
+  analyzeAudioBuffer(buf, name || 'Synth');
+}
+
+// ── SYNTH UI ──────────────────────────────────────────────────────────────────
+
+function addPartialRow(f=440, A=1.0, phi=0) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="number" class="pf" value="${f}" min="1" max="20000" step="1"></td>
+    <td><input type="number" class="pA" value="${parseFloat(A).toFixed(3)}" min="0" max="10" step="0.001"></td>
+    <td><input type="number" class="pp" value="${phi}" min="-360" max="360" step="1"></td>
+    <td><button class="del-row">×</button></td>`;
+  tr.querySelector('.del-row').onclick = () => tr.remove();
+  document.getElementById('partialBody').appendChild(tr);
+}
+
+function readPartials() {
+  return Array.from(document.querySelectorAll('#partialBody tr')).map(tr => {
+    const ins = tr.querySelectorAll('input');
+    return { f: parseFloat(ins[0].value)||440, A: parseFloat(ins[1].value)||0, phi: parseFloat(ins[2].value)||0 };
+  }).filter(p => p.A > 0);
+}
+
+function loadPartialsFromSpec(spec) {
+  document.getElementById('partialBody').innerHTML = '';
+  (spec.partials || []).forEach(p => addPartialRow(p.f, p.A ?? 1, p.phi ?? 0));
+  const a = spec.adsr || {};
+  if (a.attack  != null) document.getElementById('synthA').value   = a.attack;
+  if (a.decay   != null) document.getElementById('synthD').value   = a.decay;
+  if (a.sustain != null) document.getElementById('synthS').value   = a.sustain;
+  if (a.release != null) document.getElementById('synthR').value   = a.release;
+  if (spec.duration)     document.getElementById('synthDur').value = spec.duration;
+  const no = spec.noise || {};
+  if (no.level != null)  document.getElementById('synthNoise').value      = no.level;
+  if (no.color)          document.getElementById('synthNoiseColor').value = no.color;
+  if (spec.name)         document.getElementById('synthName').value       = spec.name;
+  document.querySelector('.stab[data-tab="additive"]').click();
+}
+
+// Tab switching
+document.querySelectorAll('.stab').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.stab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.stab-content').forEach(c => c.style.display = 'none');
+    btn.classList.add('active');
+    document.getElementById('stab-' + btn.dataset.tab).style.display = '';
+  };
+});
+
+// Synth panel toggle
+document.getElementById('synthToggleBtn').onclick = () => {
+  const panel = document.getElementById('synthPanel');
+  const btn   = document.getElementById('synthToggleBtn');
+  const opening = panel.style.display === 'none';
+  panel.style.display = opening ? '' : 'none';
+  btn.classList.toggle('open', opening);
+};
+
+// Partial table — start with one row
+addPartialRow(440, 1.0, 0);
+document.getElementById('addPartialBtn').onclick = () => addPartialRow();
+
+// Additive generate
+document.getElementById('synthGenerateBtn').onclick = () => {
+  const partials = readPartials();
+  const noise = {
+    level: parseFloat(document.getElementById('synthNoise').value) || 0,
+    color: document.getElementById('synthNoiseColor').value,
+  };
+  if (!partials.length && !noise.level) { alert('Add at least one partial or set noise level > 0.'); return; }
+  const adsr = {
+    attack:  parseFloat(document.getElementById('synthA').value)   || 0,
+    decay:   parseFloat(document.getElementById('synthD').value)   || 0,
+    sustain: parseFloat(document.getElementById('synthS').value)   || 0,
+    release: parseFloat(document.getElementById('synthR').value)   || 0,
+  };
+  const dur  = parseFloat(document.getElementById('synthDur').value) || 0.5;
+  const name = document.getElementById('synthName').value.trim() ||
+    (partials.length ? `Synth ${partials.map(p=>Math.round(p.f)+'Hz').join('+')}` : 'Synth Noise');
+  generateSynthClip(synthesizeAdditive(partials, adsr, noise, dur, 44100), 44100, name);
+};
+
+// Expression generate
+document.getElementById('synthExprBtn').onclick = () => {
+  const rawExpr = document.getElementById('synthExprInput').value.trim();
+  const dur  = parseFloat(document.getElementById('synthExprDur').value) || 1.0;
+  const sr   = parseInt(document.getElementById('synthExprSR').value)   || 44100;
+  const name = document.getElementById('synthExprName').value.trim() || 'Expr';
+
+  if (/^sine=/i.test(rawExpr)) {
+    const spec    = parseSineSpec(rawExpr.replace(/^sine=/i,''));
+    const samples = synthesizeAdditive(spec.partials, spec.adsr, spec.noise, spec.duration, sr);
+    generateSynthClip(samples, sr, name !== 'Expr' ? name : `Sine ${spec.partials[0].f}Hz`);
+    return;
+  }
+
+  // Extract duration from lavfi string if present, else use the DUR field
+  const dMatch = rawExpr.match(/duration=([0-9.]+)/i);
+  const exprDur = dMatch ? parseFloat(dMatch[1]) : dur;
+
+  try {
+    generateSynthClip(evalSynthExpr(rawExpr, sr, exprDur), sr, name);
+  } catch(e) {
+    alert(e.message);
+  }
+};
+
+// ── CLAUDE AI SYNTHESIS ───────────────────────────────────────────────────────
+
+const SYNTH_SYSTEM_PROMPT = `You are a signal synthesis assistant for an electronic percussion sound reference tool.
+The tool studies TR-808/TR-909 style filter theory and synthesizes audio via additive synthesis: sum of sinusoids with ADSR envelope and optional noise.
+
+Respond ONLY with a single valid JSON object — no prose, no markdown fences:
+{"name":"short name","partials":[{"f":440,"A":1.0,"phi":0}],"adsr":{"attack":0.005,"decay":0.15,"sustain":0.0,"release":0.05},"noise":{"level":0.0,"color":"white"},"duration":0.5}
+
+Field rules:
+- partials: array of {f Hz 1–20000, A amplitude 0–1, phi degrees}. Output is peak-normalized so relative A ratios matter, not absolute values.
+- adsr: all times in seconds. Percussive = sustain 0, short decay.
+- noise.level 0–1, color "white" or "pink".
+- duration: seconds.
+
+Sound recipes:
+- 808 kick: f=60 A=1, attack 0.001, decay 0.35, sustain 0, release 0.05, dur 0.6
+- 808 cowbell: f=440 A=1 + f=540 A=1, attack 0.001, decay 0.3, sustain 0, dur 0.5
+- Snare body: f=200 A=0.6, noise level 0.5 white, attack 0.001, decay 0.08, sustain 0, dur 0.2
+- Closed hi-hat: noise level 0.9 white, dur 0.04
+- Open hi-hat: noise level 0.9 white, dur 0.3
+- Bass tone: f=80 A=1, attack 0.05, decay 0.1, sustain 0.8, release 0.2, dur 1.0
+- Sawtooth approx: harmonics f,2f,3f,4f,5f… A=1,0.5,0.33,0.25,0.2…
+- Square approx: odd harmonics f,3f,5f,7f… A=1,0.33,0.2,0.14…
+- Metallic bell: two partials slightly detuned (e.g. 440+443 Hz), plus 2nd harmonic, long decay`;
+
+async function callClaudeForSynth(prompt, apiKey) {
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      system: SYNTH_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${r.status}`);
+  }
+  const data = await r.json();
+  const m = data.content[0].text.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('No JSON in response');
+  return JSON.parse(m[0]);
+}
+
+// Session-persist API key
+(function(){
+  const el = document.getElementById('synthApiKey');
+  el.value = sessionStorage.getItem('beatbox-apikey') || '';
+  el.oninput = () => sessionStorage.setItem('beatbox-apikey', el.value);
+})();
+
+document.getElementById('synthAIBtn').onclick = async () => {
+  const prompt = document.getElementById('synthAIPrompt').value.trim();
+  const apiKey = document.getElementById('synthApiKey').value.trim();
+  const status = document.getElementById('synthAIStatus');
+  if (!prompt) return;
+  if (!apiKey) { status.textContent = '✕ Enter your Anthropic API key above.'; status.className = 'err'; return; }
+
+  const btn = document.getElementById('synthAIBtn');
+  btn.disabled = true;
+  status.textContent = '⏳ asking Claude…'; status.className = 'busy';
+
+  try {
+    const spec = await callClaudeForSynth(prompt, apiKey);
+    status.textContent = `✓  ${spec.name}  —  ${(spec.partials||[]).length} partials  ·  noise ${spec.noise?.level??0}  ·  dur ${spec.duration}s`;
+    status.className = 'ok';
+    loadPartialsFromSpec(spec);
+    const samples = synthesizeAdditive(spec.partials||[], spec.adsr||{}, spec.noise||{level:0}, spec.duration||0.5, 44100);
+    generateSynthClip(samples, 44100, spec.name || 'AI Synth');
+  } catch(e) {
+    status.textContent = `✕  ${e.message}`;
+    status.className = 'err';
+  } finally {
+    btn.disabled = false;
+  }
 };
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
